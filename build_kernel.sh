@@ -91,7 +91,7 @@ cd kernel-5.10
 
 print_msg "$GREEN" "Setting up KernelSU..."
 
-curl -LSs "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" | bash -s 3.0.0
+curl -LSs "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" | bash -s 3.2.4
 
 print_msg "$GREEN" "Finished Setting up KernelSU..."
 
