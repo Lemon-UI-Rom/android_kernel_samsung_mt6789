@@ -561,6 +561,9 @@ struct request_queue *blk_alloc_queue(int node_id)
 
 	q->node = node_id;
 
+	// Commit from s5e8825
+	blk_queue_flag_clear(QUEUE_FLAG_ADD_RANDOM, q);
+
 	atomic_set(&q->nr_active_requests_shared_sbitmap, 0);
 
 	timer_setup(&q->backing_dev_info->laptop_mode_wb_timer,
