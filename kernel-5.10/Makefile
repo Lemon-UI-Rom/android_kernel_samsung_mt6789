@@ -2,7 +2,7 @@
 VERSION = 5
 PATCHLEVEL = 10
 SUBLEVEL = 260
-EXTRAVERSION = "- mt6789 - @poqdavid - Lemon UI - @lemonuiromupdates"
+EXTRAVERSION = - mt6789 - @poqdavid - Lemon UI - @lemonuiromupdates
 NAME = Dare mighty things
 
 # *DOCUMENTATION*
