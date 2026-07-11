@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 VERSION = 5
 PATCHLEVEL = 10
-SUBLEVEL = 260
+SUBLEVEL = 252
 EXTRAVERSION = - mt6789 - @poqdavid - Lemon UI - @lemonuiromupdates
 NAME = Dare mighty things
 
