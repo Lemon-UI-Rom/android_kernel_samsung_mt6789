@@ -125,10 +125,12 @@ void nla_get_range_unsigned(const struct nla_policy *pt,
 		range->max = U8_MAX;
 		break;
 	case NLA_U16:
+	case NLA_BE16:
 	case NLA_BINARY:
 		range->max = U16_MAX;
 		break;
 	case NLA_U32:
+	case NLA_BE32:
 		range->max = U32_MAX;
 		break;
 	case NLA_U64:
@@ -160,51 +162,6 @@ void nla_get_range_unsigned(const struct nla_policy *pt,
 	}
 }
 
-static int nla_validate_range_unsigned(const struct nla_policy *pt,
-				       const struct nlattr *nla,
-				       struct netlink_ext_ack *extack,
-				       unsigned int validate)
-{
-	struct netlink_range_validation range;
-	u64 value;
-
-	switch (pt->type) {
-	case NLA_U8:
-		value = nla_get_u8(nla);
-		break;
-	case NLA_U16:
-		value = nla_get_u16(nla);
-		break;
-	case NLA_U32:
-		value = nla_get_u32(nla);
-		break;
-	case NLA_U64:
-	case NLA_MSECS:
-		value = nla_get_u64(nla);
-		break;
-	case NLA_BINARY:
-		value = nla_len(nla);
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	nla_get_range_unsigned(pt, &range);
-
-	if (pt->validation_type == NLA_VALIDATE_RANGE_WARN_TOO_LONG &&
-	    pt->type == NLA_BINARY && value > range.max) {
-		pr_warn_ratelimited("netlink: '%s': attribute type %d has an invalid length.\n",
-				    current->comm, pt->type);
-		if (validate & NL_VALIDATE_STRICT_ATTRS) {
-			NL_SET_ERR_MSG_ATTR_POL(extack, nla, pt,
-						"invalid attribute length");
-			return -EINVAL;
-		}
-
-		/* this assumes min <= max (don't validate against min) */
-		return 0;
-	}
-
 	if (value < range.min || value > range.max) {
 		bool binary = pt->type == NLA_BINARY;
 
@@ -230,10 +187,14 @@ void nla_get_range_signed(const struct nla_policy *pt,
 		range->max = S8_MAX;
 		break;
 	case NLA_S16:
+		value = nla_get_u16(nla);
+		break;
 		range->min = S16_MIN;
 		range->max = S16_MAX;
 		break;
 	case NLA_S32:
+		value = nla_get_u32(nla);
+		break;
 		range->min = S32_MIN;
 		range->max = S32_MAX;
 		break;
