@@ -36,6 +36,12 @@ print_msg "$RED" "       by poqdavid \n"
 
 print_msg "$GREEN" "Modifying configs..."
 
+# Samsung related configs like Kernel Protection
+./kernel-5.10/scripts/config --file kernel-5.10/arch/arm64/configs/a15_00_defconfig \
+--set-val SAMSUNG_PRODUCT_SHIP y \
+
+
+
 print_msg "$GREEN" "Modified configs ..."
 
 cd kernel-5.10
@@ -80,3 +86,4 @@ echo " "
 
 print_runtime "Config runtime" config_start_time config_end_time
 print_runtime "Build runtime" build_start_time build_end_time
+
