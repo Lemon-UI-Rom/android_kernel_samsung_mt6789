@@ -1,6 +1,6 @@
 #
 # Automatically generated file; DO NOT EDIT.
-# Linux/arm64 5.10.262 Kernel Configuration
+# Linux/arm64 5.10.264 Kernel Configuration
 #
 CONFIG_CC_VERSION_TEXT="Android (7284624, based on r416183b) clang version 12.0.5 (https://android.googlesource.com/toolchain/llvm-project c935d99d7cf2016289302412d708641d52d2f7ee)"
 CONFIG_GCC_VERSION=0
@@ -753,6 +753,7 @@ CONFIG_HAS_LTO_CLANG=y
 # CONFIG_LTO_NONE is not set
 CONFIG_LTO_CLANG_FULL=y
 # CONFIG_LTO_CLANG_THIN is not set
+CONFIG_ARCH_SUPPORTS_CFI_CLANG=y
 # CONFIG_CFI_CLANG is not set
 CONFIG_HAVE_CONTEXT_TRACKING=y
 CONFIG_HAVE_VIRT_CPU_ACCOUNTING_GEN=y
