@@ -38,6 +38,8 @@ print_msg "$GREEN" "Modifying configs..."
 
 # Samsung related configs like Kernel Protection
 ./kernel-5.10/scripts/config --file kernel-5.10/arch/arm64/configs/a15_00_defconfig \
+--set-str LOCALVERSION "" \
+--set-val LOCALVERSION_AUTO n \
 --set-val UH n \
 --set-val RKP n \
 --set-val KDP n \
