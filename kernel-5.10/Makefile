@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: GPL-2.0
 VERSION = 5
 PATCHLEVEL = 10
-SUBLEVEL = 264
-EXTRAVERSION =-@lemonuiromupdates-MT6789
+SUBLEVEL = 265
+EXTRAVERSION =-GalaxyA15HypeKRNL-Diamond-G99
 NAME = Dare mighty things
 
 # *DOCUMENTATION*
