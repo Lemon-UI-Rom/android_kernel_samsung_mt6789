@@ -94,7 +94,7 @@ jobs:
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: Kernel-A155F
+          name: Kernel
           path: |
             ${{ steps.build_chain.outputs.final_tar_name }}
             kernel_modules.zip
