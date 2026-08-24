@@ -1,4 +1,4 @@
-name: Build A155F Kernel
+name: Build MT6789 Kernel
 
 on:
   workflow_dispatch:
