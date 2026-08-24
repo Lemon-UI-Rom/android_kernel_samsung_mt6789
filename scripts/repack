@@ -191,8 +191,8 @@ package_tar() {
     #susfs_version=$(grep '#define SUSFS_VERSION' ${PARENTDIR}/kernel-5.10/include/linux/susfs.h | awk -F'"' '{print $2}')
     
     # Output tar name (edit as needed)
-    #OUTTAR="../kernelsu_${KSU_VERSION}_susfs_${susfs_version}_A155FXXS7CYG4_A15_GKI.tar"
-    OUTTAR="../kernelsu_${KSU_VERSION}_A155FXXS7CYG4_A15_GKI.tar"
+    #OUTTAR="../LemonUI_MT6789.tar"
+    OUTTAR="../LemonUI_MT6789.tar"
     
     if [ ! -f "${PARENTDIR}/boot-repacked-signed.img" ]; then
         print_msg "$RED" "Signed repacked boot image not found at ${PARENTDIR}/boot-repacked-signed.img"
