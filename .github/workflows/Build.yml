@@ -6,7 +6,7 @@ on:
       TOOLCHAIN_URL:
         description: 'URL of the toolchain .tar.gz file'
         required: true
-        default: 'https://github.com/rhn-1k/a15_mirror/releases/download/a15_5g/toolchain.tar.gz'
+        default: 'https://github.com/llvm/llvm-project/releases/download/llvmorg-19.1.7/LLVM-19.1.7-Linux-X64.tar.xz'
         type: string
       CLEAN_BUILD:
         description: 'Clean before building?'
