@@ -1,4 +1,4 @@
-# Compatible With a24,a15,a16,gta9,gta9wifi (All Firmwares)
+# Compatible With a24, a15, a16, gta9, gta9wifi    (All Firmwares)
 
 
 
