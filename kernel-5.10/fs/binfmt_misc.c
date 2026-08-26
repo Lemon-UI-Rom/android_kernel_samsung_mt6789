@@ -219,16 +219,8 @@ static int load_misc_binary(struct linux_binprm *bprm)
 	if (retval < 0)
 		goto ret;
 
-	if (fmt->flags & MISC_FMT_OPEN_FILE) {
-		interp_file = file_clone_open(fmt->interp_file);
-		if (!IS_ERR(interp_file)) {
-			int err = exe_file_deny_write_access(interp_file);
-
-			if (err) {
-				fput(interp_file);
-				interp_file = ERR_PTR(err);
-			}
-		}
+		if (!IS_ERR(interp_file))
+			deny_write_access(interp_file);
 	} else {
 		interp_file = open_exec(fmt->interpreter);
 	}
