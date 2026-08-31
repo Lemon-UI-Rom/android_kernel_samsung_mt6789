@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: GPL-2.0
 VERSION = 5
 PATCHLEVEL = 10
-SUBLEVEL = 266
-EXTRAVERSION = -GalaxyA15HypeKRNL-v3.0.1
+SUBLEVEL = 267
+EXTRAVERSION = -GalaxyA15HypeKRNL-v3.0.2
 NAME = Dare mighty things
 
 # *DOCUMENTATION*
