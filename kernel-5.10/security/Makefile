@@ -39,7 +39,4 @@ obj-$(CONFIG_INTEGRITY)			+= integrity/
 # KNOX ZT
 obj-$(CONFIG_KZT) += kzt/
 obj-y += samsung/defex_lsm/ # ADDED BY LEGO AUTOMATICALLY: DO NOT SUBMIT
-obj-y += samsung/proca/ # ADDED BY LEGO AUTOMATICALLY: DO NOT SUBMIT
-obj-y += samsung/proca/gaf/ # ADDED BY LEGO AUTOMATICALLY: DO NOT SUBMIT
 obj-y += samsung/dsms/ # ADDED BY LEGO AUTOMATICALLY: DO NOT SUBMIT
-obj-y += samsung/five/ # ADDED BY LEGO AUTOMATICALLY: DO NOT SUBMIT
