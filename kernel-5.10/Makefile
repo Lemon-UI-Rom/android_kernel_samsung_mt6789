@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: GPL-2.0
-VERSION = 5
-PATCHLEVEL = 10
-SUBLEVEL = 268
-EXTRAVERSION = -GalaxyA15HypeKRNL-v3.0.2
-NAME = Dare mighty things
+VERSION = 6
+PATCHLEVEL = 12
+SUBLEVEL = 69
+EXTRAVERSION = -android16-6-pc3727c3-abogkiA155FXXUCFZG6-4k
+NAME = Baby Opossum Posse
 
 # *DOCUMENTATION*
 # To see a list of typical targets execute "make help"
