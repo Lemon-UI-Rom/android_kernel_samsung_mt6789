@@ -6,7 +6,7 @@ on:
       TOOLCHAIN_URL:
         description: 'URL of the toolchain .tar.gz file'
         required: true
-        default: 'https://github.com/llvm/llvm-project/releases/download/llvmorg-19.1.7/LLVM-19.1.7-Linux-X64.tar.xz'
+        default: 'https://github.com/ashleypixie/Mirror-Source-Clang22-Prebuilt/releases/download/clang-22-r596125/clang-r596125.tar.gz'
         type: string
       CLEAN_BUILD:
         description: 'Clean before building?'
