@@ -1739,7 +1739,6 @@ static inline void init_task_pid(struct task_struct *task, enum pid_type type, s
 		task->signal->pids[type] = pid;
 }
 
-#else
 static inline int dup_task_integrity(unsigned long clone_flags,
 						struct task_struct *tsk)
 {
