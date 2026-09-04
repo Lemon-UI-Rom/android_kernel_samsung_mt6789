@@ -68,21 +68,13 @@ print_msg "$GREEN" "Modifying configs..."
 # Kernel optimizations
 ./kernel-5.10/scripts/config --file kernel-5.10/arch/arm64/configs/a15_00_defconfig \
 --set-val TMPFS_XATTR y \
---set-val TMPFS_POSIX_ACL y \
 --set-val IP_NF_TARGET_TTL y \
---set-val IP6_NF_TARGET_HL y \
---set-val IP6_NF_MATCH_HL y \
 --set-val TCP_CONG_ADVANCED y \
 --set-val TCP_CONG_BBR y \
 --set-val NET_SCH_FQ y \
---set-val TCP_CONG_BIC n \
---set-val TCP_CONG_WESTWOOD n \
---set-val TCP_CONG_HTCP n \
+--set-val TCP_CONG_BIC y \
 --set-val DEFAULT_BBR y \
---set-val DEFAULT_BIC n \
 --set-str DEFAULT_TCP_CONG "bbr" \
---set-val DEFAULT_RENO n \
---set-val DEFAULT_CUBIC n \
 
 print_msg "$GREEN" "Modified configs ..."
 
