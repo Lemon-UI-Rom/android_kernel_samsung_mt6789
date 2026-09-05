@@ -65,17 +65,11 @@ note: build_kernel.sh already cleans before building, so no need to do before bu
 ## Acknowledgements
 This project includes code from the https://github.com/ReeViiS69/sm155f/ project, licensed under the GPL-2.0. Also, a huge thanks to ReeViiS69 for helping me build the kernel.
 
-This project includes code from the https://github.com/WildPlusKernel/GKI_KernelSU_SUSFS/ project, licensed under the GPL-2.0.
-
 This project includes code from the https://github.com/WildPlusKernel/kernel_patches/ project, licensed under the GPL-2.0.
-
-This project includes code from the https://gitlab.com/simonpunk/susfs4ksu/ project, licensed under the GPL-2.0.
 
 This project includes code from the https://github.com/fei-ke/android_kernel_samsung_sm8550/ project, licensed under the GPL-2.0.
 
 This project includes executable file/s from https://github.com/topjohnwu/Magisk/ project, licensed under the GPL-3.0.
-
-This project includes executable file/s from https://github.com/tiann/KernelSU/ project, licensed under the GPL-3.0.
 
 This project includes file/s from https://android.googlesource.com/platform/external/avb project, licensed under the Apache License, Version 2.0.
 
