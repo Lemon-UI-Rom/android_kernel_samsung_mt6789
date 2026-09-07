@@ -77,7 +77,7 @@
 
 &smd {
 	cpufreq_limit {
-		status = "okay";
+		status = "disabled";
 		compatible = "cpufreq_limit";
 
 		num_cpu = <8>;
