@@ -1876,6 +1876,10 @@
 			opp-hz = /bits/ 64 <546000000>;
 			opp-microvolt = <725000>;
 		};
+		opp-4 {
+   			opp-hz = /bits/ 64 <680000000>;
+    		opp-microvolt = <800000>;
+		};
 	};
 
 	opp_table_mdp0: opp-table-mdp0 {
