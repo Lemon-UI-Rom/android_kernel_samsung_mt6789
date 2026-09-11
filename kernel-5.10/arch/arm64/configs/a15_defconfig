@@ -7624,7 +7624,6 @@ CONFIG_INIT_ON_ALLOC_DEFAULT_ON=y
 # CONFIG_SECURITY_DEFEX is not set
 # CONFIG_GAF is not set
 CONFIG_SECURITY_DSMS=y
-# CONFIG_FIVE is not set
 # end of Security options
 
 CONFIG_XOR_BLOCKS=y
