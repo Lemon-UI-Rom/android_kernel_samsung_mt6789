@@ -119,11 +119,6 @@
 #include <linux/kdp.h>
 #endif
 
-#ifdef CONFIG_SECURITY_DEFEX
-#include <linux/defex.h>
-void __init __weak defex_load_rules(void) { }
-#endif
-
 static int kernel_init(void *);
 
 extern void init_IRQ(void);
@@ -1602,8 +1597,4 @@ static noinline void __init kernel_init_freeable(void)
 	 */
 
 	integrity_load_keys();
-#ifdef CONFIG_SECURITY_DEFEX
-	defex_load_rules();
-#endif
-
 }
