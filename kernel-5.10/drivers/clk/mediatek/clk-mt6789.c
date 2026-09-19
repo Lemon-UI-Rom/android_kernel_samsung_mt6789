@@ -511,7 +511,7 @@ static const char * const mfg_ref_parents[] = {
 };
 
 static const char * const mfg_pll_parents[] = {
-	"mfgpll_ck",
+	"mfg_ref_ck",
 	"mfgpll_ck"
 };
 

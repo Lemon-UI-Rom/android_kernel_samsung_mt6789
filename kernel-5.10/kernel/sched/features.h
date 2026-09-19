@@ -49,7 +49,7 @@ SCHED_FEAT(NONTASK_CAPACITY, true)
  * Queue remote wakeups on the target CPU and process them
  * using the scheduler IPI. Reduces rq->lock contention/bounces.
  */
-SCHED_FEAT(TTWU_QUEUE, true)
+SCHED_FEAT(TTWU_QUEUE, false)
 
 /*
  * When doing wakeups, attempt to limit superfluous scans of the LLC domain.
@@ -64,7 +64,7 @@ SCHED_FEAT(SIS_PROP, true)
  */
 SCHED_FEAT(WARN_DOUBLE_CLOCK, false)
 
-#ifdef HAVE_RT_PUSH_IPI
+#if defined(CONFIG_IRQ_WORK) && defined(CONFIG_SMP)
 /*
  * In order to avoid a thundering herd attack of CPUs that are
  * lowering their priorities at the same time, and there being
@@ -73,8 +73,16 @@ SCHED_FEAT(WARN_DOUBLE_CLOCK, false)
  * rq lock and possibly create a large contention, sending an
  * IPI to that CPU and let that CPU push the RT task to where
  * it should go may be a better scenario.
+ *
+ * This is best for PREEMPT_RT, but for non-RT it can cause issues
+ * when preemption is disabled for long periods of time. Have
+ * it only default enabled for PREEMPT_RT.
  */
+# ifdef CONFIG_PREEMPT_RT
 SCHED_FEAT(RT_PUSH_IPI, true)
+# else
+SCHED_FEAT(RT_PUSH_IPI, false)
+# endif
 #endif
 
 SCHED_FEAT(RT_RUNTIME_SHARE, false)

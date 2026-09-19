@@ -1,4 +1,4 @@
-name: Build A155F Kernel
+name: Build MT6789 Kernel
 
 on:
   workflow_dispatch:
@@ -6,7 +6,7 @@ on:
       TOOLCHAIN_URL:
         description: 'URL of the toolchain .tar.gz file'
         required: true
-        default: 'https://github.com/rhn-1k/a15_mirror/releases/download/mirror/toolchain.tar.gz'
+        default: 'https://github.com/ashleypixie/Mirror-Source-Clang22-Prebuilt/releases/download/clang-22-r596125/clang-r596125.tar.gz'
         type: string
       CLEAN_BUILD:
         description: 'Clean before building?'
@@ -94,7 +94,7 @@ jobs:
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: Kernel-A155F
+          name: Kernel
           path: |
             ${{ steps.build_chain.outputs.final_tar_name }}
             kernel_modules.zip

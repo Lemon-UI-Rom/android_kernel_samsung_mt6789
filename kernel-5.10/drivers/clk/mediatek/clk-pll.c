@@ -220,14 +220,8 @@ static int mtk_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 	u32 postdiv;
 
 	mtk_pll_calc_values(pll, &pcw, &postdiv, rate, parent_rate);
-
-	/* Force GPU (mfgpll) to bypass FHCTL limits */
-	if (pll->data && pll->data->name && strcmp(pll->data->name, "mfgpll") == 0) {
+	if (!mtk_fh_set_rate || !mtk_fh_set_rate(pll->data->name, pcw, postdiv))
 		mtk_pll_set_rate_regs(pll, pcw, postdiv);
-	} else {
-		if (!mtk_fh_set_rate || !mtk_fh_set_rate(pll->data->name, pcw, postdiv))
-			mtk_pll_set_rate_regs(pll, pcw, postdiv);
-	}
 
 	return 0;
 }

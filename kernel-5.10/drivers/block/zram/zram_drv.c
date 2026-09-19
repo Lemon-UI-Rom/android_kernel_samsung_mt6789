@@ -59,10 +59,12 @@ static DEFINE_IDR(zram_index_idr);
 static DEFINE_MUTEX(zram_index_mutex);
 
 static int zram_major;
-static const char *default_compressor = "lz4";
+static const char *default_compressor = "lzo-rle";
 
 static bool is_lzorle;
+#ifdef CONFIG_ZRAM_LRU_WRITEBACK
 static unsigned char lzo_marker[4] = {0x11, 0x00, 0x00};
+#endif
 
 /* Module params (documentation at end) */
 static unsigned int num_devices = 1;
@@ -2957,7 +2959,7 @@ static int __zram_bvec_read(struct zram *zram, struct page *page, u32 index,
 	src = zs_map_object(zram->mem_pool, handle, ZS_MM_RO);
 	if (size == PAGE_SIZE) {
 		dst = kmap_atomic(page);
-		memcpy(dst, src, PAGE_SIZE);
+		copy_page(dst, src);
 		kunmap_atomic(dst);
 		ret = 0;
 	} else {
@@ -2967,10 +2969,12 @@ static int __zram_bvec_read(struct zram *zram, struct page *page, u32 index,
 		zcomp_stream_put(zram->comp);
 	}
 
+#ifdef CONFIG_ZRAM_LRU_WRITEBACK
 	/* Should NEVER happen. BUG() if it does. */
 	if (unlikely(ret))
 		handle_decomp_fail(zram->compressor, ret, index, src, size,
 				   NULL);
+#endif
 
 	zs_unmap_object(zram->mem_pool, handle);
 #ifdef CONFIG_ZRAM_LRU_WRITEBACK
@@ -3456,7 +3460,36 @@ static ssize_t disksize_store(struct device *dev,
 		goto out_unlock;
 	}
 
-	disksize = PAGE_ALIGN(disksize);
+#ifdef CONFIG_ZRAM_SIZE_AUTO
+	{
+		/*
+		 * Dynamic ZRAM Size Detection:
+		 * totalram_pages() returns usable pages.
+		 * Thresholds based on physical max:
+		 *
+		 * Set custom ZRAM sizes depending on physical ZRAM.
+		 */
+		unsigned long total_ram_mb =
+			totalram_pages() * (PAGE_SIZE / 1024) / 1024;
+
+		if (total_ram_mb > 6200) {
+			disksize = 4ULL * SZ_1G;
+			pr_info("Detected 8GB RAM variant (usable: %lu MB), setting ZRAM to 4GB (50%%)",
+				total_ram_mb);
+		} else if (total_ram_mb > 4200) {
+			disksize = 3ULL * SZ_1G;
+			pr_info("Detected 6GB RAM variant (usable: %lu MB), setting ZRAM to 3GB",
+				total_ram_mb);
+		} else {
+			disksize = 3ULL * SZ_1G;
+			pr_info("Detected 4GB RAM variant (usable: %lu MB), setting ZRAM to 3GB",
+				total_ram_mb);
+		}
+	}
+#elif defined(CONFIG_ZRAM_SIZE_OVERRIDE)
+	disksize = (u64)SZ_1 * CONFIG_ZRAM_SIZE_OVERRIDE;
+	pr_info("Overriding zram size to %llu", disksize);
+#endif
 	if (!zram_meta_alloc(zram, disksize)) {
 		err = -ENOMEM;
 		goto out_unlock;
@@ -3677,6 +3710,11 @@ static int zram_add(void)
 		goto out_free_dev;
 	device_id = ret;
 
+	if (device_id >= 1) {
+		ret = -ENOMEM;
+		goto out_free_idr;
+	}
+	
 	init_rwsem(&zram->init_lock);
 #ifdef CONFIG_ZRAM_WRITEBACK
 	spin_lock_init(&zram->wb_limit_lock);

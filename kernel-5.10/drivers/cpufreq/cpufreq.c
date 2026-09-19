@@ -1887,6 +1887,7 @@ void cpufreq_suspend(void)
 	if (!cpufreq_driver)
 		return;
 
+	cpus_read_lock();
 	if (!has_target() && !cpufreq_driver->suspend)
 		goto suspend;
 
@@ -1906,6 +1907,7 @@ void cpufreq_suspend(void)
 
 suspend:
 	cpufreq_suspended = true;
+	cpus_read_unlock();
 }
 
 /**
@@ -2520,6 +2522,9 @@ static int cpufreq_set_policy(struct cpufreq_policy *policy,
 	policy->min = new_data.min;
 	policy->max = new_data.max;
 	trace_cpu_frequency_limits(policy);
+	
+	arch_set_min_freq_scale(policy->related_cpus, policy->min,
+				policy->cpuinfo.max_freq);
 
 	policy->cached_target_freq = UINT_MAX;
 

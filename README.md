@@ -1,3 +1,11 @@
+# Compatible With a24, a15, a16, gta9, gta9wifi 
+(All Firmwares)
+
+
+
+
+
+
 # Build Instructions
 
 ## 1. How to Build
@@ -7,7 +15,7 @@
 2. Navigate to the Actions tab in your forked repository.
 3. Select the build workflow from the left sidebar.
 4. Click Run workflow.
-5. Enter toolchain url or keep default one (thanks ravindu644 for making it available easily)
+5. Enter toolchain url or keep default one
 6. Once the process completes, you can download the compiled kernel and boot image from the Artifacts section of the finished run. <br>
 `Note: the default values does not require to clean before building, you may need to enable it if you did changes`
 
@@ -15,8 +23,7 @@
 
 ### Option B: Manual Build
 ### Get Toolchain
-Get the proper toolchain packages from AOSP, CodeSourcery, or other sources.
-[Download link](https://opensource.samsung.com/uploadSearch?searchValue=toolchain)
+Get the proper toolchain packages from AOSP.
 
 Please unzip the toolchain file in the path where `build_kernel.sh` is located:
 - `kernel/prebuilts/`
@@ -58,17 +65,11 @@ note: build_kernel.sh already cleans before building, so no need to do before bu
 ## Acknowledgements
 This project includes code from the https://github.com/ReeViiS69/sm155f/ project, licensed under the GPL-2.0. Also, a huge thanks to ReeViiS69 for helping me build the kernel.
 
-This project includes code from the https://github.com/WildPlusKernel/GKI_KernelSU_SUSFS/ project, licensed under the GPL-2.0.
-
 This project includes code from the https://github.com/WildPlusKernel/kernel_patches/ project, licensed under the GPL-2.0.
-
-This project includes code from the https://gitlab.com/simonpunk/susfs4ksu/ project, licensed under the GPL-2.0.
 
 This project includes code from the https://github.com/fei-ke/android_kernel_samsung_sm8550/ project, licensed under the GPL-2.0.
 
 This project includes executable file/s from https://github.com/topjohnwu/Magisk/ project, licensed under the GPL-3.0.
-
-This project includes executable file/s from https://github.com/tiann/KernelSU/ project, licensed under the GPL-3.0.
 
 This project includes file/s from https://android.googlesource.com/platform/external/avb project, licensed under the Apache License, Version 2.0.
 

@@ -423,7 +423,7 @@ static u64 clear_seq;
 /* record buffer */
 #define LOG_ALIGN __alignof__(unsigned long)
 #define __LOG_BUF_LEN (1 << CONFIG_LOG_BUF_SHIFT)
-#define LOG_BUF_LEN_MAX (u32)(1 << 31)
+#define LOG_BUF_LEN_MAX ((u32)1 << 31)
 static char __log_buf[__LOG_BUF_LEN] __aligned(LOG_ALIGN);
 static char *log_buf = __log_buf;
 static u32 log_buf_len = __LOG_BUF_LEN;
@@ -740,6 +740,10 @@ static ssize_t devkmsg_write(struct kiocb *iocb, struct iov_iter *from)
 	if (!user || len > LOG_LINE_MAX)
 		return -EINVAL;
 
+	/* Ignore healthd kmsg */
+	if (!strcmp(current->comm, "health@2.1-serv"))
+		return ret;
+
 	/* Ignore when user logging is disabled. */
 	if (devkmsg_log & DEVKMSG_LOG_MASK_OFF)
 		return len;
@@ -783,6 +787,12 @@ static ssize_t devkmsg_write(struct kiocb *iocb, struct iov_iter *from)
 			len -= endp - line;
 			line = endp;
 		}
+	}
+	
+	if ((strstr(line, "healthd")) || (strstr(line, "logd")) ||
+		 strstr(line, "dashd")) {
+		kfree(buf);
+		return len;
 	}
 
 	devkmsg_emit(facility, level, "%s", line);
@@ -2432,7 +2442,7 @@ void suspend_console(void)
 {
 	if (!console_suspend_enabled)
 		return;
-	pr_info("Suspending console(s) (use no_console_suspend to debug)\n");
+
 	console_lock();
 	console_suspended = 1;
 	up_console_sem();

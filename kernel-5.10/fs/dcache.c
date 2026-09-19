@@ -34,9 +34,6 @@
 #include <linux/list_lru.h>
 #include "internal.h"
 #include "mount.h"
-#ifdef CONFIG_KDP_NS
-#include <linux/kdp.h>
-#endif
 
 /*
  * Usage:
@@ -74,7 +71,7 @@
  * If no ancestor relationship:
  * arbitrary, since it's serialized on rename_lock
  */
-int sysctl_vfs_cache_pressure __read_mostly = 100;
+int sysctl_vfs_cache_pressure __read_mostly = 75;
 EXPORT_SYMBOL_GPL(sysctl_vfs_cache_pressure);
 
 __cacheline_aligned_in_smp DEFINE_SEQLOCK(rename_lock);
@@ -1804,6 +1801,8 @@ struct dentry *d_alloc(struct dentry * parent, const struct qstr *name)
 	__dget_dlock(parent);
 	dentry->d_parent = parent;
 	list_add(&dentry->d_child, &parent->d_subdirs);
+	if (parent->d_flags & DCACHE_DISCONNECTED)
+		dentry->d_flags |= DCACHE_DISCONNECTED;
 	spin_unlock(&parent->d_lock);
 
 	return dentry;
@@ -2189,6 +2188,7 @@ struct dentry *d_add_ci(struct dentry *dentry, struct inode *inode,
 	}
 	res = d_splice_alias(inode, found);
 	if (res) {
+		d_lookup_done(found);
 		dput(found);
 		return res;
 	}
@@ -3214,6 +3214,19 @@ static void __init dcache_init(void)
 	d_hash_shift = 32 - d_hash_shift;
 }
 
+static void __init vfs_cache_pressure_init(void)
+{
+	unsigned long total_ram_mb = memblock_phys_mem_size() >> 20;
+
+	/*
+	 * Use physical RAM rather than totalram_pages(), which is already
+	 * reduced by reserved-memory carveouts on these Mediatek devices.
+	 * A cutoff above 5 GB cleanly separates 4/6 GB variants from 8 GB.
+	 */
+	if (total_ram_mb > 6200)
+		sysctl_vfs_cache_pressure = 50;
+}
+
 /* SLAB cache for __getname() consumers */
 struct kmem_cache *names_cachep __read_mostly;
 EXPORT_SYMBOL(names_cachep);
@@ -3234,6 +3247,7 @@ void __init vfs_caches_init(void)
 	names_cachep = kmem_cache_create_usercopy("names_cache", PATH_MAX, 0,
 			SLAB_HWCACHE_ALIGN|SLAB_PANIC, 0, PATH_MAX, NULL);
 
+	vfs_cache_pressure_init();
 	dcache_init();
 	inode_init();
 	files_init();

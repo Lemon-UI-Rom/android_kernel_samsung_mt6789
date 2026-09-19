@@ -334,8 +334,15 @@ unsigned long zone_reclaimable_pages(struct zone *zone)
 		zone_page_state_snapshot(zone, NR_ZONE_ACTIVE_FILE);
 	if (get_nr_swap_pages() > 0)
 		nr += zone_page_state_snapshot(zone, NR_ZONE_INACTIVE_ANON) +
-			zone_page_state_snapshot(zone, NR_ZONE_ACTIVE_ANON);
-
+			zone_page_state_snapshot(zone, NR_ZONE_ACTIVE_ANON);			
+	/*
+	 * If there are no reclaimable file-backed or anonymous pages,
+	 * ensure zones with sufficient free pages are not skipped.
+	 * This prevents zones like DMA32 from being ignored in reclaim
+	 * scenarios where they can still help alleviate memory pressure.
+	 */
+	if (nr == 0)
+		nr = zone_page_state_snapshot(zone, NR_FREE_PAGES);
 	return nr;
 }
 
@@ -1838,7 +1845,7 @@ int isolate_lru_page(struct page *page)
 	int ret = -EBUSY;
 
 	VM_BUG_ON_PAGE(!page_count(page), page);
-	WARN_RATELIMIT(PageTail(page), "trying to isolate tail page");
+	/* WARN_RATELIMIT(PageTail(page), "trying to isolate tail page"); */
 
 	if (PageLRU(page)) {
 		pg_data_t *pgdat = page_pgdat(page);
