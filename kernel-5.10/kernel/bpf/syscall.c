@@ -31,6 +31,7 @@
 #include <linux/poll.h>
 #include <linux/bpf-netns.h>
 #include <linux/rcupdate_trace.h>
+#include <linux/memcontrol.h>
 
 #include <trace/hooks/syscall_check.h>
 
@@ -285,6 +286,10 @@ static int bpf_map_copy_value(struct bpf_map *map, void *key, void *value,
 	return err;
 }
 
+/* Please, do not use this function outside from the map creation path
+ * (e.g. in map update path) without taking care of setting the active
+ * memory cgroup (see at bpf_map_kmalloc_node() for example).
+ */
 static void *__bpf_map_area_alloc(u64 size, int numa_node, bool mmapable)
 {
 	/* We really just want to fail instead of triggering OOM killer
@@ -297,7 +302,7 @@ static void *__bpf_map_area_alloc(u64 size, int numa_node, bool mmapable)
 	 * __GFP_RETRY_MAYFAIL to avoid such situations.
 	 */
 
-	const gfp_t gfp = __GFP_NOWARN | __GFP_ZERO;
+	const gfp_t gfp = __GFP_NOWARN | __GFP_ZERO | __GFP_ACCOUNT;
 	unsigned int flags = 0;
 	unsigned long align = 1;
 	void *area;
@@ -474,6 +479,65 @@ void bpf_map_free_id(struct bpf_map *map, bool do_idr_lock)
 		__release(&map_idr_lock);
 }
 
+#ifdef CONFIG_MEMCG_KMEM
+static void bpf_map_save_memcg(struct bpf_map *map)
+{
+	map->memcg = get_mem_cgroup_from_mm(current->mm);
+}
+
+static void bpf_map_release_memcg(struct bpf_map *map)
+{
+	mem_cgroup_put(map->memcg);
+}
+
+void *bpf_map_kmalloc_node(const struct bpf_map *map, size_t size, gfp_t flags,
+			   int node)
+{
+	struct mem_cgroup *old_memcg;
+	void *ptr;
+
+	old_memcg = set_active_memcg(map->memcg);
+	ptr = kmalloc_node(size, flags | __GFP_ACCOUNT, node);
+	set_active_memcg(old_memcg);
+
+	return ptr;
+}
+
+void *bpf_map_kzalloc(const struct bpf_map *map, size_t size, gfp_t flags)
+{
+	struct mem_cgroup *old_memcg;
+	void *ptr;
+
+	old_memcg = set_active_memcg(map->memcg);
+	ptr = kzalloc(size, flags | __GFP_ACCOUNT);
+	set_active_memcg(old_memcg);
+
+	return ptr;
+}
+
+void __percpu *bpf_map_alloc_percpu(const struct bpf_map *map, size_t size,
+				    size_t align, gfp_t flags)
+{
+	struct mem_cgroup *old_memcg;
+	void __percpu *ptr;
+
+	old_memcg = set_active_memcg(map->memcg);
+	ptr = __alloc_percpu_gfp(size, align, flags | __GFP_ACCOUNT);
+	set_active_memcg(old_memcg);
+
+	return ptr;
+}
+
+#else
+static void bpf_map_save_memcg(struct bpf_map *map)
+{
+}
+
+static void bpf_map_release_memcg(struct bpf_map *map)
+{
+}
+#endif
+
 /* called from workqueue */
 static void bpf_map_free_deferred(struct work_struct *work)
 {
@@ -482,6 +546,7 @@ static void bpf_map_free_deferred(struct work_struct *work)
 
 	bpf_map_charge_move(&mem, &map->memory);
 	security_bpf_map_free(map);
+	bpf_map_release_memcg(map);
 	/* implementation dependent freeing */
 	map->ops->map_free(map);
 	bpf_map_charge_finish(&mem);
@@ -888,6 +953,8 @@ static int map_create(union bpf_attr *attr)
 	err = bpf_map_alloc_id(map);
 	if (err)
 		goto free_map_sec;
+
+	bpf_map_save_memcg(map);
 
 	err = bpf_map_new_fd(map, f_flags);
 	if (err < 0) {
