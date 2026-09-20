@@ -1,0 +1,10 @@
+diff a/kernel-5.10/kernel/irq_work.c b/kernel-5.10/kernel/irq_work.c	(rejected hunks)
+@@ -142,7 +142,7 @@ void irq_work_single(void *arg)
+ 	 * to claim that work don't rely on us to handle their data
+ 	 * while we are in the middle of the func.
+ 	 */
+-	flags = atomic_fetch_andnot(IRQ_WORK_PENDING, &work->flags);
++	flags = atomic_fetch_andnot(IRQ_WORK_PENDING, &work->node.a_flags);
+ 
+ 	lockdep_irq_work_enter(work);
+ 	work->func(work);
