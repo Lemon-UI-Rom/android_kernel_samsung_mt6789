@@ -7002,9 +7002,7 @@ CONFIG_SEC_MISC=y
 #
 # CONFIG_CABLE_TYPE_NOTIFIER is not set
 CONFIG_SEC_PM_DEBUG=m
-CONFIG_NGKSM=y
 CONFIG_NGKPAD=y
-CONFIG_HDM=m
 CONFIG_SEC_PANEL_NOTIFIER_V2=m
 
 #
@@ -7621,8 +7619,6 @@ CONFIG_INIT_ON_ALLOC_DEFAULT_ON=y
 # end of Memory initialization
 # end of Kernel hardening options
 
-# CONFIG_SECURITY_DEFEX is not set
-# CONFIG_GAF is not set
 CONFIG_SECURITY_DSMS=y
 # end of Security options
 

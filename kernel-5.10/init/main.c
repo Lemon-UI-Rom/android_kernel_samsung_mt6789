@@ -750,9 +750,6 @@ noinline void __ref rest_init(void)
 	cpu_startup_entry(CPUHP_ONLINE);
 }
 
-#ifdef CONFIG_KDP_NS
-int __is_kdp_recovery __kdp_ro = 0;
-#endif
 
 /* Check for early params. */
 static int __init do_early_param(char *param, char *val,
@@ -773,12 +770,6 @@ static int __init do_early_param(char *param, char *val,
 	}
 	/* We accept everything at this stage. */
 
-#ifdef CONFIG_KDP_NS
-    if ((strncmp(param, "bootmode", 9) == 0)) {
-        if ((strncmp(val, "2", 2) == 0))
-            __is_kdp_recovery = 1;
-    }
-#endif
 
 	return 0;
 }
@@ -1070,10 +1061,6 @@ asmlinkage __visible void __init __no_sanitize_address start_kernel(void)
 		efi_enter_virtual_mode();
 #endif
 	thread_stack_cache_init();
-#ifdef CONFIG_KDP
-	if (kdp_enable)
-		kdp_init();
-#endif
 	cred_init();
 	fork_init();
 	proc_caches_init();
@@ -1480,9 +1467,6 @@ static int __ref kernel_init(void *unused)
 	if (ramdisk_execute_command) {
 		ret = run_init_process(ramdisk_execute_command);
 		if (!ret) {
-#ifdef CONFIG_RKP
-			rkp_deferred_init();
-#endif
 			return 0;
 		}
 		pr_err("Failed to execute %s (error %d)\n",
