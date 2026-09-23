@@ -1653,6 +1653,7 @@ void security_cred_free_hook(struct cred *cred)
 	BUG_ON(!is_kdp_protect_addr((unsigned long)cred));
 
 	call_void_hook(cred_free, cred);
+}
 
 int security_prepare_creds(struct cred *new, const struct cred *old, gfp_t gfp)
 {
