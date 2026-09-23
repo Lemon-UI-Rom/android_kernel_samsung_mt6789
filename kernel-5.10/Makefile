@@ -989,7 +989,7 @@ endif
 
 ifeq ($(SRCARCH),x86)
 # TODO(b/182572011): Revert workaround for compiler / linker bug.
-CC_FLAGS_LTO	+= -fvisibility=hidden
+CC_FLAGS_LTO	+= -fvisibility=default
 else
 CC_FLAGS_LTO	+= -fvisibility=default
 endif
