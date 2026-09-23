@@ -1650,8 +1650,6 @@ void security_cred_free_hook(struct cred *cred)
 	if (unlikely(cred == NULL || cred->security == NULL))
 		return;
 
-	BUG_ON(!is_kdp_protect_addr((unsigned long)cred));
-
 	call_void_hook(cred_free, cred);
 }
 
