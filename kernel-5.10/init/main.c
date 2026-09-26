@@ -111,14 +111,6 @@
 
 #include <kunit/test.h>
 
-#ifdef CONFIG_RKP
-#include <linux/rkp.h>
-#endif
-
-#ifdef CONFIG_KDP
-#include <linux/kdp.h>
-#endif
-
 static int kernel_init(void *);
 
 extern void init_IRQ(void);
@@ -937,19 +929,12 @@ asmlinkage __visible void __init __no_sanitize_address start_kernel(void)
 	sort_main_extable();
 	trap_init();
 	mm_init();
-#ifdef CONFIG_RKP
-	rkp_init();
-#endif
 	poking_init();
 	ftrace_init();
 
 	/* trace_printk can be enabled here */
 	early_trace_init();
 
-#ifdef CONFIG_KDP
-	// move to after, early_trace_init. cuz security_integrity_current failed
-	kdp_enable = true;
-#endif
 	/*
 	 * Set up the scheduler prior starting any interrupts (such as the
 	 * timer interrupt). Full topology setup happens at smp_init()
