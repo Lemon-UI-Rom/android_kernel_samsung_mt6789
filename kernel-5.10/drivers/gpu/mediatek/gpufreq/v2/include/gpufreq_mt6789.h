@@ -150,7 +150,7 @@ struct gpufreq_core_mask_info g_core_mask_table[] = {
 /**************************************************
  * Adaptive Volt Scaling (AVS) Setting
  **************************************************/
-#define GPUFREQ_AVS_ENABLE              (1)
+#define GPUFREQ_AVS_ENABLE              (0)
 
 /**************************************************
  * Aging Sensor Setting
@@ -334,6 +334,8 @@ struct gpufreq_opp_info g_default_gpu[] = {
 	GPUOP(415000,  68125, 75000, POSDIV_POWER_4,  625, 0), /* 43 */
 	GPUOP(390000,  67500, 75000, POSDIV_POWER_4,  625, 0), /* 44 sign off*/
 };
+
+
 #else
 struct gpufreq_opp_info g_default_gpu[] = {
 	GPUOP(1003000, 83750, 83750, POSDIV_POWER_2, 1875, 0), /*  0 UV: 1003MHz @ 837mV (validated live) */
