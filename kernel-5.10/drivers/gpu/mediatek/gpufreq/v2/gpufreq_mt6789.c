@@ -3284,7 +3284,11 @@ static int __gpufreq_init_opp_table(struct platform_device *pdev)
 	/* init working OPP range */
 	segment_id = g_gpu.segment_id;
 	if (segment_id == MT6789_SEGMENT)
+		#ifdef CONFIG_LEMONUI_UNLOCK
 		g_gpu.segment_upbound = 0;
+		#else
+		g_gpu.segment_upbound = 7;
+		#endif
 	else
 		g_gpu.segment_upbound = 0;
 	g_gpu.segment_lowbound = SIGNED_OPP_GPU_NUM - 1;
