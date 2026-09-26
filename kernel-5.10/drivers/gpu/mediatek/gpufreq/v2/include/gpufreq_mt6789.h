@@ -150,7 +150,7 @@ struct gpufreq_core_mask_info g_core_mask_table[] = {
 /**************************************************
  * Adaptive Volt Scaling (AVS) Setting
  **************************************************/
-#define GPUFREQ_AVS_ENABLE              (0)
+#define GPUFREQ_AVS_ENABLE              (1)
 
 /**************************************************
  * Aging Sensor Setting
