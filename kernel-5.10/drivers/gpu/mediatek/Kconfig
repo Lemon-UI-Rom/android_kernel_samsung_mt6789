@@ -138,3 +138,9 @@ config MTK_GPU_MT6983_SUPPORT
 	  Set Y or M to select this feature for specific platform-mt6983,
 	  and set N to disable.
 	  It is additional config to separate platforms.
+	  
+config CONFIG_LEMONUI_UNLOCK
+	tristate "lemonui unlocked"
+	default n
+	help
+	  Select if u want overclocked gpu to 1212mhz or not.
