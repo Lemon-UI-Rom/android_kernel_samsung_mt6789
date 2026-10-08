@@ -3409,7 +3409,7 @@ static int __gpufreq_init_segment_id(struct platform_device *pdev)
 	GPUFREQ_LOGI("efuse_id: 0x%x, segment_id: %d", efuse_id, segment_id);
 
 done:
-	g_gpu.segment_id = segment_id;
+	g_gpu.segment_id = ENG_SEGMENT;
 
 	return ret;
 }
