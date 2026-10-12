@@ -226,7 +226,7 @@ static void update_shadow(struct module *mod, unsigned long base_addr,
 
 	rcu_assign_pointer(cfi_shadow, next);
 	mutex_unlock(&shadow_update_lock);
-	synchronize_rcu_expedited();
+	synchronize_rcu();
 
 	if (prev) {
 		set_memory_rw((unsigned long)prev, SHADOW_PAGES);
@@ -331,9 +331,6 @@ out:
 void cfi_slowpath_handler(uint64_t id, void *ptr, void *diag)
 {
 	cfi_check_fn fn = find_check_fn((unsigned long)ptr);
-
-	if (!IS_ENABLED(CONFIG_CFI_PERMISSIVE))
-		diag = NULL;
 
 	if (likely(fn))
 		fn(id, ptr, diag);
