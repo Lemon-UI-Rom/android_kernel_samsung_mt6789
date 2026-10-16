@@ -973,15 +973,21 @@ endif
 
 ifdef CONFIG_LTO_CLANG
 ifdef CONFIG_LTO_CLANG_THIN
-CC_FLAGS_LTO	:= -flto=thin -fsplit-lto-unit -funified-lto
+CC_FLAGS_LTO	:= -flto=thin -fsplit-lto-unit
 
 # LLVM tunings
 KBUILD_LDFLAGS += -mllvm -inline-threshold=500
+KBUILD_LDFLAGS	+= --thinlto-cache-dir=$(extmod-prefix).thinlto-cache
 else
 CC_FLAGS_LTO	:= -flto
 endif
 
+ifeq ($(SRCARCH),x86)
+# TODO(b/182572011): Revert workaround for compiler / linker bug.
 CC_FLAGS_LTO	+= -fvisibility=default
+else
+CC_FLAGS_LTO	+= -fvisibility=default
+endif
 
 # Limit inlining across translation units to reduce binary size
 KBUILD_LDFLAGS += -mllvm -import-instr-limit=5
