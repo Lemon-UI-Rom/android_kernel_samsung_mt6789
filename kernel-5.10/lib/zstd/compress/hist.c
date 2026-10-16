@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: GPL-2.0+ OR BSD-3-Clause
 /* ******************************************************************
  * hist : Histogram functions
  * part of Finite State Entropy project
