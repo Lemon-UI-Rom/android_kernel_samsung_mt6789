@@ -24,6 +24,7 @@ on:
         options:
           - 'true'
           - 'false'
+  push:
 
 jobs:
   build:
