@@ -847,10 +847,6 @@ struct task_struct {
 	unsigned			in_memstall:1;
 #endif
 
-#ifdef CONFIG_CFI_STUBS
-	u8				__gki_task_pad[0xc8];
-#endif
-
 	unsigned long			atomic_flags; /* Flags requiring atomic access. */
 
 	struct restart_block		restart_block;
@@ -972,8 +968,8 @@ struct task_struct {
 	struct nameidata		*nameidata;
 
 #ifdef CONFIG_SYSVIPC
-	// struct sysv_sem			sysvsem;
-	// struct sysv_shm			sysvshm;
+	struct sysv_sem			sysvsem;
+	struct sysv_shm			sysvshm;
 #endif
 #ifdef CONFIG_DETECT_HUNG_TASK
 	unsigned long			last_switch_count;
@@ -1386,16 +1382,9 @@ struct task_struct {
 	ANDROID_KABI_RESERVE(3);
 	ANDROID_KABI_RESERVE(4);
 	ANDROID_KABI_RESERVE(5);
-	
-
-#ifdef CONFIG_SYSVIPC
-	ANDROID_KABI_USE(6, struct sysv_sem sysvsem);
-	_ANDROID_KABI_REPLACE(ANDROID_KABI_RESERVE(7); ANDROID_KABI_RESERVE(8), struct sysv_shm sysvshm);
-#else
 	ANDROID_KABI_RESERVE(6);
 	ANDROID_KABI_RESERVE(7);
 	ANDROID_KABI_RESERVE(8);
-#endif
 
 	/*
 	 * New fields for task_struct should be added above here, so that
