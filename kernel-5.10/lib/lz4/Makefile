@@ -1,4 +1,4 @@
-ccflags-y += -O3 -funroll-loops \
+ccflags-y += -O3 \
     -DLZ4_FREESTANDING=1 \
     -DLZ4_FAST_DEC_LOOP=1
 
