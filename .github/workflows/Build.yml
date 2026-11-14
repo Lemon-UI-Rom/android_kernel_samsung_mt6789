@@ -17,9 +17,9 @@ on:
           - 'true'
           - 'false'
       EXTRACT_MODULES:
-        description: 'Extract "mtk_gpufreq_mt6789.ko" ?'
+        description: 'Extract and zip modules?'
         required: true
-        default: 'true'
+        default: 'false'
         type: choice
         options:
           - 'true'
@@ -78,13 +78,8 @@ jobs:
           
           if [ "${{ github.event.inputs.EXTRACT_MODULES }}" == "true" ]; then
             mkdir -p modules_extracted
-            find out/ -name "mtk_gpufreq_mt6789.ko" -exec cp {} modules_extracted/ \;
-            if [ -n "$(ls -A modules_extracted)" ]; then
-              zip -r kernel_modules.zip modules_extracted/
-            else
-              echo "::warning::mtk_gpufreq_mt6789.ko not found in build output!"
-            fi
-            
+            find out/ -name "*.ko" -exec cp {} modules_extracted/ \;
+            zip -r kernel_modules.zip modules_extracted/
             rm -rf modules_extracted
           fi
           
