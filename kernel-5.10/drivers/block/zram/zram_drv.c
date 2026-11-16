@@ -3467,23 +3467,24 @@ static ssize_t disksize_store(struct device *dev,
 		 * Dynamic ZRAM Size Detection:
 		 * totalram_pages() returns usable pages.
 		 * Thresholds based on physical max:
-		 *
-		 * Set custom ZRAM sizes depending on physical ZRAM.
+		 * 4GB Dev: Max 4096 MB -> Usable < 4096 MB.
+		 * 6GB Dev: Max 6144 MB -> Usable < 6144 MB.
+		 * 8GB Dev: Max 8192 MB -> Usable > 6144 MB (usually).
 		 */
 		unsigned long total_ram_mb =
 			totalram_pages() * (PAGE_SIZE / 1024) / 1024;
 
 		if (total_ram_mb > 6200) {
-			disksize = 4ULL * SZ_1G;
-			pr_info("Detected 8GB RAM variant (usable: %lu MB), setting ZRAM to 4GB (50%%)",
+			disksize = 8ULL * SZ_1G;
+			pr_info("Detected 8GB RAM variant (usable: %lu MB), setting ZRAM to 8GB",
 				total_ram_mb);
 		} else if (total_ram_mb > 4200) {
-			disksize = 3ULL * SZ_1G;
-			pr_info("Detected 6GB RAM variant (usable: %lu MB), setting ZRAM to 3GB",
+			disksize = 6ULL * SZ_1G;
+			pr_info("Detected 6GB RAM variant (usable: %lu MB), setting ZRAM to 6GB",
 				total_ram_mb);
 		} else {
-			disksize = 3ULL * SZ_1G;
-			pr_info("Detected 4GB RAM variant (usable: %lu MB), setting ZRAM to 3GB",
+			disksize = 4ULL * SZ_1G;
+			pr_info("Detected 4GB RAM variant (usable: %lu MB), setting ZRAM to 4GB",
 				total_ram_mb);
 		}
 	}
