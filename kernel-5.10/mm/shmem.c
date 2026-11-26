@@ -261,11 +261,6 @@ static const struct inode_operations shmem_special_inode_operations;
 static const struct vm_operations_struct shmem_vm_ops;
 static struct file_system_type shmem_fs_type;
 
-bool shmem_file(struct file *file)
-{
-	return file && file_inode(file)->i_fop == &shmem_file_operations;
-}
-
 bool vma_is_shmem(struct vm_area_struct *vma)
 {
 	return vma->vm_ops == &shmem_vm_ops;
@@ -969,7 +964,7 @@ static void shmem_undo_range(struct inode *inode, loff_t lstart, loff_t lend,
 		}
 		pagevec_remove_exceptionals(&pvec);
 		pagevec_release(&pvec);
-		cond_resched_tasks_rcu_qs();
+		cond_resched();
 		index++;
 	}
 
@@ -1003,7 +998,7 @@ static void shmem_undo_range(struct inode *inode, loff_t lstart, loff_t lend,
 
 	index = start;
 	while (index < end) {
-		cond_resched_tasks_rcu_qs();
+		cond_resched();
 
 		pvec.nr = find_get_entries(mapping, index,
 				min(end - index, (pgoff_t)PAGEVEC_SIZE),
@@ -1317,10 +1312,6 @@ static int shmem_unuse_inode(struct inode *inode, unsigned int type,
 			}
 		}
 
-		if (signal_pending(current)) {
-			ret = -ERESTARTSYS;
-			break;
-		}
 		start = indices[pvec.nr - 1];
 	} while (true);
 
@@ -2295,9 +2286,12 @@ static int shmem_mmap(struct file *file, struct vm_area_struct *vma)
 	struct shmem_inode_info *info = SHMEM_I(file_inode(file));
 	int ret;
 
-	ret = seal_check_write(info->seals, vma);
+	ret = seal_check_future_write(info->seals, vma);
 	if (ret)
 		return ret;
+
+	/* arm64 - allow memory tagging on RAM-based files */
+	vma->vm_flags |= VM_MTE_ALLOWED;
 
 	file_accessed(file);
 	vma->vm_ops = &shmem_vm_ops;

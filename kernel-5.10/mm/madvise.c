@@ -371,10 +371,9 @@ static int madvise_cold_or_pageout_pte_range(pmd_t *pmd,
 		if (next - addr != HPAGE_PMD_SIZE) {
 			int err;
 
-			if (!trylock_page(page))
-				goto huge_unlock;
 			get_page(page);
 			spin_unlock(ptl);
+			lock_page(page);
 			err = split_huge_page(page);
 			unlock_page(page);
 			put_page(page);
@@ -384,7 +383,10 @@ static int madvise_cold_or_pageout_pte_range(pmd_t *pmd,
 		}
 
 		if (pmd_young(orig_pmd)) {
-			pmdp_test_and_clear_young(vma, addr, pmd);
+			pmdp_invalidate(vma, addr, pmd);
+			orig_pmd = pmd_mkold(orig_pmd);
+
+			set_pmd_at(mm, addr, pmd, orig_pmd);
 			tlb_remove_pmd_tlb_entry(tlb, pmd, addr);
 		}
 
@@ -403,7 +405,6 @@ huge_unlock:
 		spin_unlock(ptl);
 		if (pageout)
 			reclaim_pages(&page_list);
-		cond_resched();
 		return 0;
 	}
 
@@ -918,15 +919,6 @@ static int madvise_free_pte_range(pmd_t *pmd, unsigned long addr,
 			if (!trylock_page(page))
 				continue;
 			/*
-			 * KSM pages can gain new mappings at any time, so we must
-			 * not clear their dirty flag.
-			 */
-			if (PageKsm(page)) {
-				unlock_page(page);
-				continue;
-			}
-
-			/*
 			 * If page is shared with others, we couldn't clear
 			 * PG_dirty of the page.
 			 */
@@ -1124,7 +1116,7 @@ static long madvise_remove(struct vm_area_struct *vma,
 			return -EINVAL;
 	}
 
-	if (!vma_is_shared_maywrite(vma))
+	if ((vma->vm_flags & (VM_SHARED|VM_WRITE)) != (VM_SHARED|VM_WRITE))
 		return -EACCES;
 
 	offset = (loff_t)(start - vma->vm_start)
@@ -1489,7 +1481,7 @@ SYSCALL_DEFINE5(process_madvise, int, pidfd, const struct iovec __user *, vec,
 		goto out;
 	}
 
-	ret = import_iovec(ITER_DEST, vec, vlen, ARRAY_SIZE(iovstack), &iov, &iter);
+	ret = import_iovec(READ, vec, vlen, ARRAY_SIZE(iovstack), &iov, &iter);
 	if (ret < 0)
 		goto out;
 
