@@ -248,6 +248,7 @@ typedef struct timespec mytime_t;
 #endif	/* __KERNEL__ */
 #endif	/* DEBUG_EXCUTION_TIME */
 
+#undef in_range
 #define in_range(i, r)					\
 	((r).from <= (r).to) ?				\
 	((r).from <= (i) && (i) < (r).to) :	\

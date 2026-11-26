@@ -53,6 +53,7 @@ struct wa_blob {
 	u32 blob_offset;
 } __packed;
 
+#undef in_range
 static bool in_range(const u8 *base, const u8 *end, off_t off, size_t sz)
 {
 	return !(end - base - off < sz);
