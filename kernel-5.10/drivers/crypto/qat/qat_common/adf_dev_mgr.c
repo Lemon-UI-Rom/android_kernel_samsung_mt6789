@@ -45,19 +45,6 @@ static struct vf_id_map *adf_find_vf(u32 bdf)
 	return NULL;
 }
 
-static int adf_get_vf_real_id(u32 fake)
-{
-	struct list_head *itr;
-
-	list_for_each(itr, &vfs_table) {
-		struct vf_id_map *ptr =
-			list_entry(itr, struct vf_id_map, list);
-		if (ptr->fake_id == fake)
-			return ptr->id;
-	}
-	return -1;
-}
-
 /**
  * adf_clean_vf_map() - Cleans VF id mapings
  *

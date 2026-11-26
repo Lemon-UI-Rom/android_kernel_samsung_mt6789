@@ -905,13 +905,18 @@ config PAGE_BOOST_RECORDING
 	  As Android executes an app one by one, only allow 1 recording
 	  at a time.
 
-config GUP_BENCHMARK
-	bool "Enable infrastructure for get_user_pages() and related calls benchmarking"
+config GUP_TEST
+	bool "Enable infrastructure for get_user_pages()-related unit tests"
 	help
-	  Provides /sys/kernel/debug/gup_benchmark that helps with testing
-	  performance of get_user_pages() and related calls.
+	  Provides /sys/kernel/debug/gup_test, which in turn provides a way
+	  to make ioctl calls that can launch kernel-based unit tests for
+	  the get_user_pages*() and pin_user_pages*() family of API calls.
 
-	  See tools/testing/selftests/vm/gup_benchmark.c
+	  These tests include benchmark testing of the _fast variants of
+	  get_user_pages*() and pin_user_pages*(), as well as smoke tests of
+	  the non-_fast variants.
+
+	  See tools/testing/selftests/vm/gup_test.c
 
 config GUP_GET_PTE_LOW_HIGH
 	bool
@@ -989,6 +994,9 @@ config RESTRICT_FILE_TO_CMA_ON_BOOT
 	  File page on cma zone which was allocated at early boot stage might
           occur cma allocation failure. This config restricts file cache allocation
           on cma zone for increasing the possibiliy of cma allocation success.
+
+config KMAP_LOCAL
+	bool
 
 endmenu
 

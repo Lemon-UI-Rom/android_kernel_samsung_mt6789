@@ -52,7 +52,8 @@ static void free_proxy(struct aa_proxy *proxy)
 
 void aa_proxy_kref(struct kref *kref)
 {
-	struct aa_proxy *proxy = container_of(kref, struct aa_proxy, count);
+	struct aa_proxy *proxy = container_of(kref, struct aa_proxy,
+					      count.count);
 
 	free_proxy(proxy);
 }
@@ -63,7 +64,8 @@ struct aa_proxy *aa_alloc_proxy(struct aa_label *label, gfp_t gfp)
 
 	new = kzalloc(sizeof(struct aa_proxy), gfp);
 	if (new) {
-		kref_init(&new->count);
+		kref_init(&new->count.count);
+		new->count.reftype = REF_PROXY;
 		rcu_assign_pointer(new->label, aa_get_label(label));
 	}
 	return new;
@@ -366,7 +368,8 @@ static void label_free_rcu(struct rcu_head *head)
 
 void aa_label_kref(struct kref *kref)
 {
-	struct aa_label *label = container_of(kref, struct aa_label, count);
+	struct aa_label *label = container_of(kref, struct aa_label,
+					      count.count);
 	struct aa_ns *ns = labels_ns(label);
 
 	if (!ns) {
@@ -374,7 +377,6 @@ void aa_label_kref(struct kref *kref)
 		label_free_switch(label);
 		return;
 	}
-	/* TODO: update labels_profile macro so it works here */
 	AA_BUG(label_isprofile(label) &&
 	       on_list_rcu(&label->vec[0]->base.profiles));
 	AA_BUG(label_isprofile(label) &&
@@ -403,7 +405,8 @@ bool aa_label_init(struct aa_label *label, int size, gfp_t gfp)
 
 	label->size = size;			/* doesn't include null */
 	label->vec[size] = NULL;		/* null terminate */
-	kref_init(&label->count);
+	kref_init(&label->count.count);
+	label->count.reftype = REF_NS;		/* for aafs purposes */
 	RB_CLEAR_NODE(&label->node);
 
 	return true;
@@ -446,7 +449,7 @@ struct aa_label *aa_label_alloc(int size, struct aa_proxy *proxy, gfp_t gfp)
 	return new;
 
 fail:
-	kfree(new);
+	aa_label_free(new);
 
 	return NULL;
 }
@@ -1947,12 +1950,18 @@ struct aa_label *aa_label_strn_parse(struct aa_label *base, const char *str,
 		goto out;
 	}
 
-	if (create)
+	if (create) {
 		label = aa_vec_find_or_create_label(vec, len, gfp);
-	else
+		if (!label) {
+			/* not absence: creating only fails on allocation */
+			label = ERR_PTR(-ENOMEM);
+			goto out;
+		}
+	} else {
 		label = vec_find(vec, len);
-	if (!label)
-		goto fail;
+		if (!label)
+			goto fail;
+	}
 
 out:
 	/* use adjusted len from after vec_unique, not original */

@@ -295,7 +295,7 @@ static int dmirror_fault(struct dmirror *dmirror, unsigned long start,
 
 	/* Since the mm is for the mirrored process, get a reference first. */
 	if (!mmget_not_zero(mm))
-		return 0;
+		return -EFAULT;
 
 	for (addr = start; addr < end; addr = range.end) {
 		range.start = addr;
@@ -929,6 +929,8 @@ static long dmirror_fops_unlocked_ioctl(struct file *filp,
 		return -EFAULT;
 
 	if (cmd.addr & ~PAGE_MASK)
+		return -EINVAL;
+	if (cmd.npages > ULONG_MAX >> PAGE_SHIFT)
 		return -EINVAL;
 	if (cmd.addr >= (cmd.addr + (cmd.npages << PAGE_SHIFT)))
 		return -EINVAL;

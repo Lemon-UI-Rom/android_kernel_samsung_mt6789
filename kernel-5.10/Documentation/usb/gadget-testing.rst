@@ -441,17 +441,17 @@ Function-specific configfs interface
 The function name to use when creating the function directory is "ncm".
 The NCM function provides these attributes in its function directory:
 
-	===============   ==================================================
-	ifname		  network device interface name associated with this
-			  function instance
-	qmult		  queue length multiplier for high and super speed
-	host_addr	  MAC address of host's end of this
-			  Ethernet over USB link
-	dev_addr	  MAC address of device's end of this
-			  Ethernet over USB link
-	max_segment_size  Segment size required for P2P connections. This
-			  will set MTU to (max_segment_size - 14 bytes)
-	===============   ==================================================
+	======================= ==================================================
+	ifname			network device interface name associated with this
+				function instance
+	qmult			queue length multiplier for high and super speed
+	host_addr		MAC address of host's end of this
+				Ethernet over USB link
+	dev_addr		MAC address of device's end of this
+				Ethernet over USB link
+	max_segment_size	Segment size required for P2P connections. This
+				will set MTU to 14 bytes
+	======================= ==================================================
 
 and after creating the functions/ncm.<instance name> they contain default
 values: qmult is 5, dev_addr and host_addr are randomly selected.
@@ -697,9 +697,6 @@ The uac1 function provides these attributes in its function directory:
 
 	=============== ====================================
 	audio_buf_size	audio buffer size
-	fn_cap		capture pcm device file name
-	fn_cntl		control device file name
-	fn_play		playback pcm device file name
 	req_buf_size	ISO OUT endpoint request buffer size
 	req_count	ISO OUT endpoint request count
 	=============== ====================================

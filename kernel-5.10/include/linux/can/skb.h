@@ -33,7 +33,7 @@
  */
 struct can_skb_priv {
 	int ifindex;
-	int skbcnt;
+	u32 skbcnt;
 	struct can_frame cf[];
 };
 

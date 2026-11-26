@@ -11,8 +11,10 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <stdlib.h>
+#ifdef HAVE_LIBBPF_SUPPORT
 #include <bpf/libbpf.h>
 #include "bpf-event.h"
+#endif
 #include "compress.h"
 #include "env.h"
 #include "namespaces.h"
@@ -336,7 +338,9 @@ int dso__decompress_kmodule_path(struct dso *dso, const char *name,
 {
 	int fd = decompress_kmodule(dso, name, pathname, len);
 
-	close(fd);
+	/* decompress_kmodule() returns -1 on failure, don't close(-1) */
+	if (fd >= 0)
+		close(fd);
 	return fd >= 0 ? 0 : -1;
 }
 
@@ -728,6 +732,7 @@ bool dso__data_status_seen(struct dso *dso, enum dso_data_status_seen by)
 	return false;
 }
 
+#ifdef HAVE_LIBBPF_SUPPORT
 static ssize_t bpf_read(struct dso *dso, u64 offset, char *data)
 {
 	struct bpf_prog_info_node *node;
@@ -765,6 +770,7 @@ static int bpf_size(struct dso *dso)
 	dso->data.file_size = node->info_linear->info.jited_prog_len;
 	return 0;
 }
+#endif // HAVE_LIBBPF_SUPPORT
 
 static void
 dso_cache__free(struct dso *dso)
@@ -847,7 +853,20 @@ static ssize_t dso_cache__memcpy(struct dso_cache *cache, u64 offset, u8 *data,
 				 u64 size, bool out)
 {
 	u64 cache_offset = offset - cache->offset;
-	u64 cache_size   = min(cache->size - cache_offset, size);
+	u64 cache_size;
+
+	/*
+	 * The RB tree matches using DSO__DATA_CACHE_SIZE, but a short
+	 * pread may leave cache->size smaller.  For a regular file a
+	 * short pread only happens at end-of-file, so an offset past
+	 * the valid data is EOF: return 0, matching what a direct
+	 * pread() at that offset would return, and cached_io() then
+	 * stops its read loop.
+	 */
+	if (cache_offset >= cache->size)
+		return 0;
+
+	cache_size = min(cache->size - cache_offset, size);
 
 	if (out)
 		memcpy(data, cache->data + cache_offset, cache_size);
@@ -894,10 +913,12 @@ static struct dso_cache *dso_cache__populate(struct dso *dso,
 		*ret = -ENOMEM;
 		return NULL;
 	}
-
+#ifdef HAVE_LIBBPF_SUPPORT
 	if (dso->binary_type == DSO_BINARY_TYPE__BPF_PROG_INFO)
 		*ret = bpf_read(dso, cache_offset, cache->data);
-	else if (dso->binary_type == DSO_BINARY_TYPE__OOL)
+	else
+#endif
+	if (dso->binary_type == DSO_BINARY_TYPE__OOL)
 		*ret = DSO__DATA_CACHE_SIZE;
 	else
 		*ret = file_read(dso, machine, cache_offset, cache->data);
@@ -1018,10 +1039,10 @@ int dso__data_file_size(struct dso *dso, struct machine *machine)
 
 	if (dso->data.status == DSO_DATA_STATUS_ERROR)
 		return -1;
-
+#ifdef HAVE_LIBBPF_SUPPORT
 	if (dso->binary_type == DSO_BINARY_TYPE__BPF_PROG_INFO)
 		return bpf_size(dso);
-
+#endif
 	return file_size(dso, machine);
 }
 

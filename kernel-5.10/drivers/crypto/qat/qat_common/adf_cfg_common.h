@@ -27,29 +27,4 @@ enum adf_device_type {
 	DEV_C3XXX,
 	DEV_C3XXXVF
 };
-
-struct adf_dev_status_info {
-	enum adf_device_type type;
-	__u32 accel_id;
-	__u32 instance_id;
-	__u8 num_ae;
-	__u8 num_accel;
-	__u8 num_logical_accel;
-	__u8 banks_per_accel;
-	__u8 state;
-	__u8 bus;
-	__u8 dev;
-	__u8 fun;
-	char name[MAX_DEVICE_NAME_SIZE];
-};
-
-#define ADF_CTL_IOC_MAGIC 'a'
-#define IOCTL_CONFIG_SYS_RESOURCE_PARAMETERS _IOW(ADF_CTL_IOC_MAGIC, 0, \
-		struct adf_user_cfg_ctl_data)
-#define IOCTL_STOP_ACCEL_DEV _IOW(ADF_CTL_IOC_MAGIC, 1, \
-		struct adf_user_cfg_ctl_data)
-#define IOCTL_START_ACCEL_DEV _IOW(ADF_CTL_IOC_MAGIC, 2, \
-		struct adf_user_cfg_ctl_data)
-#define IOCTL_STATUS_ACCEL_DEV _IOW(ADF_CTL_IOC_MAGIC, 3, __u32)
-#define IOCTL_GET_NUM_DEVICES _IOW(ADF_CTL_IOC_MAGIC, 4, __s32)
 #endif

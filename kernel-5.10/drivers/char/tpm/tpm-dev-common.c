@@ -48,6 +48,8 @@ static ssize_t tpm_dev_transmit(struct tpm_chip *chip, struct tpm_space *space,
 
 	if (!ret)
 		ret = tpm2_commit_space(chip, space, buf, &len);
+	else
+		tpm2_flush_space(chip);
 
 out_rc:
 	return ret ? ret : len;
@@ -129,6 +131,9 @@ ssize_t tpm_common_read(struct file *file, char __user *buf,
 	struct file_priv *priv = file->private_data;
 	ssize_t ret_size = 0;
 	int rc;
+
+	if (!size)
+		return 0;
 
 	mutex_lock(&priv->buffer_mutex);
 
