@@ -30,9 +30,8 @@
 
 #include "internal.h"
 
-static pud_t *get_old_pud(struct vm_area_struct *vma, unsigned long addr)
+static pud_t *get_old_pud(struct mm_struct *mm, unsigned long addr)
 {
-	struct mm_struct *mm = vma->vm_mm;
 	pgd_t *pgd;
 	p4d_t *p4d;
 	pud_t *pud;
@@ -46,19 +45,18 @@ static pud_t *get_old_pud(struct vm_area_struct *vma, unsigned long addr)
 		return NULL;
 
 	pud = pud_offset(p4d, addr);
-	split_huge_pud(vma, pud, addr);
 	if (pud_none_or_clear_bad(pud))
 		return NULL;
 
 	return pud;
 }
 
-static pmd_t *get_old_pmd(struct vm_area_struct *vma, unsigned long addr)
+static pmd_t *get_old_pmd(struct mm_struct *mm, unsigned long addr)
 {
 	pud_t *pud;
 	pmd_t *pmd;
 
-	pud = get_old_pud(vma, addr);
+	pud = get_old_pud(mm, addr);
 	if (!pud)
 		return NULL;
 
@@ -217,6 +215,7 @@ static bool move_normal_pmd(struct vm_area_struct *vma, unsigned long old_addr,
 		  unsigned long new_addr, pmd_t *old_pmd, pmd_t *new_pmd)
 {
 	spinlock_t *old_ptl, *new_ptl, *old_pte_ptl;
+
 	struct mm_struct *mm = vma->vm_mm;
 	pmd_t pmd;
 
@@ -244,14 +243,6 @@ static bool move_normal_pmd(struct vm_area_struct *vma, unsigned long old_addr,
 	 * this point, and verify that it really is empty. We'll see.
 	 */
 	if (WARN_ON_ONCE(!pmd_none(*new_pmd)))
-		return false;
-
-	/*
-	 * We need to ensure that fast-remap is not racing with a concurrent
-	 * SPF is in progress, since a fast remap can change the vmf's pmd
-	 * and hence its ptl from under it, by moving the pmd_t entry.
-	 */
-	if (!trylock_vma_ref_count(vma))
 		return false;
 
 	/*
@@ -468,7 +459,7 @@ unsigned long move_page_tables(struct vm_area_struct *vma,
 		if (IS_ENABLED(CONFIG_HAVE_MOVE_PUD) && extent == PUD_SIZE) {
 			pud_t *old_pud, *new_pud;
 
-			old_pud = get_old_pud(vma, old_addr);
+			old_pud = get_old_pud(vma->vm_mm, old_addr);
 			if (!old_pud)
 				continue;
 			new_pud = alloc_new_pud(vma->vm_mm, vma, new_addr);
@@ -480,7 +471,7 @@ unsigned long move_page_tables(struct vm_area_struct *vma,
 		}
 
 		extent = get_extent(NORMAL_PMD, old_addr, old_end, new_addr);
-		old_pmd = get_old_pmd(vma, old_addr);
+		old_pmd = get_old_pmd(vma->vm_mm, old_addr);
 		if (!old_pmd)
 			continue;
 		new_pmd = alloc_new_pmd(vma->vm_mm, vma, new_addr);
@@ -553,22 +544,9 @@ static unsigned long move_vma(struct vm_area_struct *vma,
 	if (err)
 		return err;
 
-	/*
-	 * To account mlock()'d pages correctly in the MREMAP_DONTUNMAP
-	 * case perform any split ahead of time for an mlock()'d VMA.
-	 */
-	if ((flags & MREMAP_DONTUNMAP) && (vma->vm_flags & VM_LOCKED)) {
-		if (vma->vm_start != old_addr)
-			err = split_vma(mm, vma, old_addr, 1);
-		if (!err && vma->vm_end != old_addr + old_len)
-			err = split_vma(mm, vma, old_addr + old_len, 0);
-		if (err)
-			return err;
-	}
-
 	new_pgoff = vma->vm_pgoff + ((old_addr - vma->vm_start) >> PAGE_SHIFT);
 	new_vma = copy_vma(&vma, new_addr, new_len, new_pgoff,
-			   &need_rmap_locks, flags & MREMAP_DONTUNMAP);
+			   &need_rmap_locks);
 	if (!new_vma)
 		return -ENOMEM;
 
@@ -637,15 +615,23 @@ static unsigned long move_vma(struct vm_area_struct *vma,
 		untrack_pfn_moved(vma);
 
 	if (unlikely(!err && (flags & MREMAP_DONTUNMAP))) {
-		/* Self-merge is disallowed. */
-		VM_WARN_ON_ONCE(new_vma == vma);
-
 		if (vm_flags & VM_ACCOUNT) {
 			/* Always put back VM_ACCOUNT since we won't unmap */
 			vma->vm_flags |= VM_ACCOUNT;
 
 			vm_acct_memory(new_len >> PAGE_SHIFT);
 		}
+
+		/*
+		 * VMAs can actually be merged back together in copy_vma
+		 * calling merge_vma. This can happen with anonymous vmas
+		 * which have not yet been faulted, so if we were to consider
+		 * this VMA split we'll end up adding VM_ACCOUNT on the
+		 * next VMA, which is completely unrelated if this VMA
+		 * was re-merged.
+		 */
+		if (split && new_vma == vma)
+			split = 0;
 
 		/* We always clear VM_LOCKED[ONFAULT] on the old vma */
 		vma->vm_flags &= VM_LOCKED_CLEAR_MASK;
