@@ -856,12 +856,30 @@ unsigned int cfg80211_classify8021d(struct sk_buff *skb,
 	}
 
 	switch (skb->protocol) {
-	case htons(ETH_P_IP):
-		dscp = ipv4_get_dsfield(ip_hdr(skb)) & 0xfc;
+	case htons(ETH_P_IP): {
+		const struct iphdr *iph;
+		struct iphdr _iph;
+
+		iph = skb_header_pointer(skb, sizeof(struct ethhdr),
+					 sizeof(*iph), &_iph);
+		if (!iph)
+			return 0;
+
+		dscp = ipv4_get_dsfield(iph) & 0xfc;
 		break;
-	case htons(ETH_P_IPV6):
-		dscp = ipv6_get_dsfield(ipv6_hdr(skb)) & 0xfc;
+	}
+	case htons(ETH_P_IPV6): {
+		const struct ipv6hdr *ip6h;
+		struct ipv6hdr _ip6h;
+
+		ip6h = skb_header_pointer(skb, sizeof(struct ethhdr),
+					  sizeof(*ip6h), &_ip6h);
+		if (!ip6h)
+			return 0;
+
+		dscp = ipv6_get_dsfield(ip6h) & 0xfc;
 		break;
+	}
 	case htons(ETH_P_MPLS_UC):
 	case htons(ETH_P_MPLS_MC): {
 		struct mpls_label mpls_tmp, *mpls;
@@ -1231,7 +1249,7 @@ static u32 cfg80211_calculate_bitrate_edmg(struct rate_info *rate)
 
 static u32 cfg80211_calculate_bitrate_vht(struct rate_info *rate)
 {
-	static const u32 base[4][10] = {
+	static const u32 base[4][12] = {
 		{   6500000,
 		   13000000,
 		   19500000,
@@ -1242,7 +1260,9 @@ static u32 cfg80211_calculate_bitrate_vht(struct rate_info *rate)
 		   65000000,
 		   78000000,
 		/* not in the spec, but some devices use this: */
-		   86500000,
+		   86700000,
+		   97500000,
+		  108300000,
 		},
 		{  13500000,
 		   27000000,
@@ -1254,6 +1274,8 @@ static u32 cfg80211_calculate_bitrate_vht(struct rate_info *rate)
 		  135000000,
 		  162000000,
 		  180000000,
+		  202500000,
+		  225000000,
 		},
 		{  29300000,
 		   58500000,
@@ -1265,6 +1287,8 @@ static u32 cfg80211_calculate_bitrate_vht(struct rate_info *rate)
 		  292500000,
 		  351000000,
 		  390000000,
+		  438800000,
+		  487500000,
 		},
 		{  58500000,
 		  117000000,
@@ -1276,12 +1300,14 @@ static u32 cfg80211_calculate_bitrate_vht(struct rate_info *rate)
 		  585000000,
 		  702000000,
 		  780000000,
+		  877500000,
+		  975000000,
 		},
 	};
 	u32 bitrate;
 	int idx;
 
-	if (rate->mcs > 9)
+	if (rate->mcs > 11)
 		goto warn;
 
 	switch (rate->bw) {
@@ -1391,12 +1417,14 @@ static u32 cfg80211_calculate_bitrate_he(struct rate_info *rate)
 	tmp = result;
 	tmp *= SCALE;
 	do_div(tmp, mcs_divisors[rate->mcs]);
-	result = tmp;
 
 	/* and take NSS, DCM into account */
-	result = (result * rate->nss) / 8;
+	tmp *= rate->nss;
+	do_div(tmp, 8);
 	if (rate->he_dcm)
-		result /= 2;
+		do_div(tmp, 2);
+
+	result = tmp;
 
 	return result / 10000;
 }

@@ -159,7 +159,7 @@ static bool irqfd_is_active(struct kvm_kernel_irqfd *irqfd)
 static void irqfd_deactivate(struct kvm_kernel_irqfd *irqfd)
 {
 	lockdep_assert_held(&irqfd->kvm->irqfds.lock);
-	
+
 	BUG_ON(!irqfd_is_active(irqfd));
 
 	list_del_init(&irqfd->list);
@@ -196,7 +196,7 @@ irqfd_wakeup(wait_queue_entry_t *wait, unsigned mode, int sync, void *key)
 			seq = read_seqcount_begin(&irqfd->irq_entry_sc);
 			irq = irqfd->irq_entry;
 		} while (read_seqcount_retry(&irqfd->irq_entry_sc, seq));
-		
+
 		/*
 		 * An event has been signaled, inject an interrupt unless the
 		 * irqfd is being deassigned (isn't active), in which case the
@@ -696,7 +696,6 @@ ioeventfd_in_range(struct _ioeventfd *p, gpa_t addr, int len, const void *val)
 		return true;
 
 	/* otherwise, we have to actually compare the data */
-
 	switch (len) {
 	case 1:
 		_val = get_unaligned((u8 *)val);

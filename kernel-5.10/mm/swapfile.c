@@ -2072,6 +2072,8 @@ static inline int unuse_pmd_range(struct vm_area_struct *vma, pud_t *pud,
 	pmd = pmd_offset(pud, addr);
 	do {
 		cond_resched();
+		if (signal_pending(current))
+			return -ERESTARTSYS;
 		next = pmd_addr_end(addr, end);
 		if (pmd_none_or_trans_huge_or_clear_bad(pmd))
 			continue;
@@ -2309,7 +2311,7 @@ retry:
 	if (READ_ONCE(si->inuse_pages)) {
 		if (!signal_pending(current))
 			goto retry;
-		retval = -EINTR;
+		retval = -ERESTARTSYS;
 	}
 out:
 	return (retval == FRONTSWAP_PAGES_UNUSED) ? 0 : retval;
@@ -3277,6 +3279,13 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
 	inode_lock(inode);
 	if (IS_SWAPFILE(inode)) {
 		error = -EBUSY;
+		goto bad_swap_unlock_inode;
+	}
+	if (IS_ENCRYPTED(inode)) {
+		pr_warn_once(
+			"Filesystem-level encrypted swapfile '%s' is unsupported. Create a loop device over it, or use dm-crypt\n",
+			name->name);
+		error = -EINVAL;
 		goto bad_swap_unlock_inode;
 	}
 

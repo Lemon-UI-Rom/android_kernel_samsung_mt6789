@@ -810,7 +810,6 @@ static int stm32_i2s_parse_dt(struct platform_device *pdev,
 	const struct of_device_id *of_id;
 	struct reset_control *rst;
 	struct resource *res;
-	int irq, ret;
 
 	if (!np)
 		return -ENODEV;
@@ -830,57 +829,31 @@ static int stm32_i2s_parse_dt(struct platform_device *pdev,
 
 	/* Get clocks */
 	i2s->pclk = devm_clk_get(&pdev->dev, "pclk");
-	if (IS_ERR(i2s->pclk)) {
-		if (PTR_ERR(i2s->pclk) != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "Could not get pclk: %ld\n",
-				PTR_ERR(i2s->pclk));
-		return PTR_ERR(i2s->pclk);
-	}
+	if (IS_ERR(i2s->pclk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(i2s->pclk),
+				     "Could not get pclk\n");
 
 	i2s->i2sclk = devm_clk_get(&pdev->dev, "i2sclk");
-	if (IS_ERR(i2s->i2sclk)) {
-		if (PTR_ERR(i2s->i2sclk) != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "Could not get i2sclk: %ld\n",
-				PTR_ERR(i2s->i2sclk));
-		return PTR_ERR(i2s->i2sclk);
-	}
+	if (IS_ERR(i2s->i2sclk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(i2s->i2sclk),
+				     "Could not get i2sclk\n");
 
 	i2s->x8kclk = devm_clk_get(&pdev->dev, "x8k");
-	if (IS_ERR(i2s->x8kclk)) {
-		if (PTR_ERR(i2s->x8kclk) != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "Could not get x8k parent clock: %ld\n",
-				PTR_ERR(i2s->x8kclk));
-		return PTR_ERR(i2s->x8kclk);
-	}
+	if (IS_ERR(i2s->x8kclk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(i2s->x8kclk),
+				     "Could not get x8k parent clock\n");
 
 	i2s->x11kclk = devm_clk_get(&pdev->dev, "x11k");
-	if (IS_ERR(i2s->x11kclk)) {
-		if (PTR_ERR(i2s->x11kclk) != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "Could not get x11k parent clock: %ld\n",
-				PTR_ERR(i2s->x11kclk));
-		return PTR_ERR(i2s->x11kclk);
-	}
-
-	/* Get irqs */
-	irq = platform_get_irq(pdev, 0);
-	if (irq < 0)
-		return irq;
-
-	ret = devm_request_irq(&pdev->dev, irq, stm32_i2s_isr, IRQF_ONESHOT,
-			       dev_name(&pdev->dev), i2s);
-	if (ret) {
-		dev_err(&pdev->dev, "irq request returned %d\n", ret);
-		return ret;
-	}
+	if (IS_ERR(i2s->x11kclk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(i2s->x11kclk),
+				     "Could not get x11k parent clock\n");
 
 	/* Reset */
 	rst = devm_reset_control_get_optional_exclusive(&pdev->dev, NULL);
-	if (IS_ERR(rst)) {
-		if (PTR_ERR(rst) != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "Reset controller error %ld\n",
-				PTR_ERR(rst));
-		return PTR_ERR(rst);
-	}
+	if (IS_ERR(rst))
+		return dev_err_probe(&pdev->dev, PTR_ERR(rst),
+				     "Reset controller error\n");
+
 	reset_control_assert(rst);
 	udelay(2);
 	reset_control_deassert(rst);
@@ -900,7 +873,7 @@ static int stm32_i2s_probe(struct platform_device *pdev)
 {
 	struct stm32_i2s_data *i2s;
 	u32 val;
-	int ret;
+	int irq, ret;
 
 	i2s = devm_kzalloc(&pdev->dev, sizeof(*i2s), GFP_KERNEL);
 	if (!i2s)
@@ -922,19 +895,22 @@ static int stm32_i2s_probe(struct platform_device *pdev)
 
 	i2s->regmap = devm_regmap_init_mmio_clk(&pdev->dev, "pclk",
 						i2s->base, i2s->regmap_conf);
-	if (IS_ERR(i2s->regmap)) {
-		if (PTR_ERR(i2s->regmap) != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "Regmap init error %ld\n",
-				PTR_ERR(i2s->regmap));
-		return PTR_ERR(i2s->regmap);
-	}
+	if (IS_ERR(i2s->regmap))
+		return dev_err_probe(&pdev->dev, PTR_ERR(i2s->regmap),
+				     "Regmap init error\n");
+
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0)
+		return irq;
+
+	ret = devm_request_irq(&pdev->dev, irq, stm32_i2s_isr, 0,
+			       dev_name(&pdev->dev), i2s);
+	if (ret)
+		return ret;
 
 	ret = snd_dmaengine_pcm_register(&pdev->dev, &stm32_i2s_pcm_config, 0);
-	if (ret) {
-		if (ret != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "PCM DMA register error %d\n", ret);
+	if (ret)
 		return ret;
-	}
 
 	ret = snd_soc_register_component(&pdev->dev, &stm32_i2s_component,
 					 i2s->dai_drv, 1);

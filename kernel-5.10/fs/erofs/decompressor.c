@@ -141,6 +141,7 @@ static void *z_erofs_handle_inplace_io(struct z_erofs_decompress_req *rq,
 
 	if (rq->inplace_io) {
 		if (rq->partial_decoding || !support_0padding ||
+		    nrpages_out < nrpages_in ||
 		    ofull - oend < LZ4_DECOMPRESS_INPLACE_MARGIN(inputsize))
 			goto docopy;
 
@@ -225,7 +226,7 @@ static int z_erofs_lz4_decompress(struct z_erofs_decompress_req *rq, u8 *dst)
 					&maptype, support_0padding);
 	if (IS_ERR(src))
 		return PTR_ERR(src);
-	
+
 	out = dst + rq->pageofs_out;
 	/* legacy format could compress extra data in a pcluster. */
 	if (rq->partial_decoding || !support_0padding)

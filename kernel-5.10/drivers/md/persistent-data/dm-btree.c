@@ -669,7 +669,7 @@ static int split_one_into_two(struct shadow_spine *s, unsigned parent_index,
 	rn->header.nr_entries = cpu_to_le32(0);
 	rn->header.max_entries = ln->header.max_entries;
 	rn->header.value_size = ln->header.value_size;
-		redistribute2(ln, rn);
+	redistribute2(ln, rn);
 
 	/* patch up the parent */
 	parent = shadow_parent(s);
@@ -684,6 +684,7 @@ static int split_one_into_two(struct shadow_spine *s, unsigned parent_index,
 		return r;
 	}
 
+	/* patch up the spine */
 	if (key < le64_to_cpu(rn->keys[0])) {
 		unlock_block(s->info, right);
 		s->nodes[1] = left;
@@ -1120,9 +1121,10 @@ static int btree_insert_raw(struct shadow_spine *s, dm_block_t root,
 
 			if (r < 0)
 				return r;
-		}
 
-		node = dm_block_data(shadow_current(s));
+			/* making space can cause the current node to change */
+			node = dm_block_data(shadow_current(s));
+		}
 
 		i = lower_bound(node, key);
 

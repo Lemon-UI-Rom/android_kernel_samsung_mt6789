@@ -147,7 +147,8 @@ static int do_isofs_readdir(struct inode *inode, struct file *file,
 			de = tmpde;
 		}
 		/* Basic sanity check, whether name doesn't exceed dir entry */
-		if (de_len < de->name_len[0] +
+		if (de_len < sizeof(struct iso_directory_record) ||
+		    de_len < de->name_len[0] +
 					sizeof(struct iso_directory_record)) {
 			printk(KERN_NOTICE "iso9660: Corrupted directory entry"
 			       " in block %lu of inode %lu\n", block,
@@ -214,7 +215,9 @@ static int do_isofs_readdir(struct inode *inode, struct file *file,
 		if (map) {
 #ifdef CONFIG_JOLIET
 			if (sbi->s_joliet_level) {
-				len = get_joliet_filename(de, tmpname, inode);
+				len = get_joliet_filename(de, tmpname,
+							  JOLIET_NAME_MAX + 1,
+							  inode);
 				p = tmpname;
 			} else
 #endif

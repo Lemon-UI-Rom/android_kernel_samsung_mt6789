@@ -423,7 +423,7 @@ static unsigned long mmap_base(unsigned long rnd, struct rlimit *rlim_stack)
 	if (gap + pad > gap)
 		gap += pad;
 
-	if (gap < MIN_GAP)
+	if (gap < MIN_GAP && MIN_GAP < MAX_GAP)
 		gap = MIN_GAP;
 	else if (gap > MAX_GAP)
 		gap = MAX_GAP;
@@ -778,6 +778,19 @@ bool page_mapped(struct page *page)
 }
 EXPORT_SYMBOL(page_mapped);
 
+/**
+ * page_anon_vma - Get a page's raw anon_vma pointer.
+ * @page: The page.
+ *
+ * The returned pointer may be stale for an unmapped page. The caller
+ * must ensure the anon_vma stays alive before dereferencing it. A page
+ * reference or lock alone is insufficient; use page_get_anon_vma() when
+ * the anon_vma's lifetime is not otherwise protected. Note that
+ * page_get_anon_vma() is only useful for pages that are still mapped.
+ *
+ * Return: The raw anon_vma pointer for an anonymous, non-KSM page, or
+ * %NULL otherwise.
+ */
 struct anon_vma *page_anon_vma(struct page *page)
 {
 	unsigned long mapping;
@@ -1084,4 +1097,37 @@ int __weak memcmp_pages(struct page *page1, struct page *page2)
 	kunmap_atomic(addr2);
 	kunmap_atomic(addr1);
 	return ret;
+}
+
+int mmap_file(struct file *file, struct vm_area_struct *vma)
+{
+	static const struct vm_operations_struct dummy_vm_ops = {};
+	int err = call_mmap(file, vma);
+
+	if (likely(!err))
+		return 0;
+
+	/*
+	 * OK, we tried to call the file hook for mmap(), but an error
+	 * arose. The mapping is in an inconsistent state and we most not invoke
+	 * any further hooks on it.
+	 */
+	vma->vm_ops = &dummy_vm_ops;
+
+	return err;
+}
+
+void vma_close(struct vm_area_struct *vma)
+{
+	static const struct vm_operations_struct dummy_vm_ops = {};
+
+	if (vma->vm_ops && vma->vm_ops->close) {
+		vma->vm_ops->close(vma);
+
+		/*
+		 * The mapping is in an inconsistent state, and no further hooks
+		 * may be invoked upon it.
+		 */
+		vma->vm_ops = &dummy_vm_ops;
+	}
 }

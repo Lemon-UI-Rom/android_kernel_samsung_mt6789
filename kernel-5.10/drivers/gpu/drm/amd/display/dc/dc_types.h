@@ -268,11 +268,6 @@ struct dc_edid_caps {
 	struct dc_panel_patch panel_patch;
 };
 
-struct view {
-	uint32_t width;
-	uint32_t height;
-};
-
 struct dc_mode_flags {
 	/* note: part of refresh rate flag*/
 	uint32_t INTERLACE :1;
@@ -438,7 +433,7 @@ struct dc_lttpr_caps {
 	uint8_t max_link_rate;
 	uint8_t phy_repeater_cnt;
 	uint8_t max_ext_timeout;
-	uint8_t aux_rd_interval[MAX_REPEATER_CNT - 1];
+	uint8_t aux_rd_interval[MAX_REPEATER_CNT];
 };
 
 struct dc_dongle_caps {

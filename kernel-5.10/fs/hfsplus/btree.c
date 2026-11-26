@@ -264,16 +264,19 @@ void hfs_btree_close(struct hfs_btree *tree)
 		return;
 
 	for (i = 0; i < NODE_HASH_SIZE; i++) {
+		spin_lock(&tree->hash_lock);
 		while ((node = tree->node_hash[i])) {
-			tree->node_hash[i] = node->next_hash;
+			hfs_bnode_unhash(node);
+			spin_unlock(&tree->hash_lock);
 			if (atomic_read(&node->refcnt))
 				pr_crit("node %d:%d "
 						"still has %d user(s)!\n",
 					node->tree->cnid, node->this,
 					atomic_read(&node->refcnt));
 			hfs_bnode_free(node);
-			tree->node_hash_cnt--;
+			spin_lock(&tree->hash_lock);
 		}
+		spin_unlock(&tree->hash_lock);
 	}
 	iput(tree->inode);
 	kfree(tree);
@@ -343,7 +346,7 @@ static struct hfs_bnode *hfs_bmap_new_bmap(struct hfs_bnode *prev, u32 idx)
 }
 
 /* Make sure @tree has enough space for the @rsvd_nodes */
-int hfs_bmap_reserve(struct hfs_btree *tree, int rsvd_nodes)
+int hfs_bmap_reserve(struct hfs_btree *tree, u32 rsvd_nodes)
 {
 	struct inode *inode = tree->inode;
 	struct hfsplus_inode_info *hip = HFSPLUS_I(inode);
@@ -391,6 +394,12 @@ struct hfs_bnode *hfs_bmap_alloc(struct hfs_btree *tree)
 		return node;
 	len = hfs_brec_lenoff(node, 2, &off16);
 	off = off16;
+
+	if (!is_bnode_offset_valid(node, off)) {
+		hfs_bnode_put(node);
+		return ERR_PTR(-EIO);
+	}
+	len = check_and_correct_requested_length(node, off, len);
 
 	off += node->page_offset;
 	pagep = node->page + (off >> PAGE_SHIFT);

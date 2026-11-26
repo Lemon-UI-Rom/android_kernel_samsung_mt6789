@@ -91,6 +91,70 @@ xfs_perag_put(
 	trace_xfs_perag_put(pag->pag_mount, pag->pag_agno, ref, _RET_IP_);
 }
 
+uint64_t
+xfs_sb_version_to_features(
+	struct xfs_sb	*sbp)
+{
+	uint64_t	features = 0;
+
+	/* optional V4 features */
+	if (sbp->sb_rblocks > 0)
+		features |= XFS_FEAT_REALTIME;
+	if (sbp->sb_versionnum & XFS_SB_VERSION_ATTRBIT)
+		features |= XFS_FEAT_ATTR;
+	if (sbp->sb_versionnum & XFS_SB_VERSION_QUOTABIT)
+		features |= XFS_FEAT_QUOTA;
+	if (sbp->sb_versionnum & XFS_SB_VERSION_ALIGNBIT)
+		features |= XFS_FEAT_ALIGN;
+	if (sbp->sb_versionnum & XFS_SB_VERSION_LOGV2BIT)
+		features |= XFS_FEAT_LOGV2;
+	if (sbp->sb_versionnum & XFS_SB_VERSION_DALIGNBIT)
+		features |= XFS_FEAT_DALIGN;
+	if (sbp->sb_versionnum & XFS_SB_VERSION_EXTFLGBIT)
+		features |= XFS_FEAT_EXTFLG;
+	if (sbp->sb_versionnum & XFS_SB_VERSION_SECTORBIT)
+		features |= XFS_FEAT_SECTOR;
+	if (sbp->sb_versionnum & XFS_SB_VERSION_BORGBIT)
+		features |= XFS_FEAT_ASCIICI;
+	if (sbp->sb_versionnum & XFS_SB_VERSION_MOREBITSBIT) {
+		if (sbp->sb_features2 & XFS_SB_VERSION2_LAZYSBCOUNTBIT)
+			features |= XFS_FEAT_LAZYSBCOUNT;
+		if (sbp->sb_features2 & XFS_SB_VERSION2_ATTR2BIT)
+			features |= XFS_FEAT_ATTR2;
+		if (sbp->sb_features2 & XFS_SB_VERSION2_PROJID32BIT)
+			features |= XFS_FEAT_PROJID32;
+		if (sbp->sb_features2 & XFS_SB_VERSION2_FTYPE)
+			features |= XFS_FEAT_FTYPE;
+	}
+
+	if (XFS_SB_VERSION_NUM(sbp) != XFS_SB_VERSION_5)
+		return features;
+
+	/* Always on V5 features */
+	features |= XFS_FEAT_ALIGN | XFS_FEAT_LOGV2 | XFS_FEAT_EXTFLG |
+		    XFS_FEAT_LAZYSBCOUNT | XFS_FEAT_ATTR2 | XFS_FEAT_PROJID32 |
+		    XFS_FEAT_V3INODES | XFS_FEAT_CRC | XFS_FEAT_PQUOTINO;
+
+	/* Optional V5 features */
+	if (sbp->sb_features_ro_compat & XFS_SB_FEAT_RO_COMPAT_FINOBT)
+		features |= XFS_FEAT_FINOBT;
+	if (sbp->sb_features_ro_compat & XFS_SB_FEAT_RO_COMPAT_RMAPBT)
+		features |= XFS_FEAT_RMAPBT;
+	if (sbp->sb_features_ro_compat & XFS_SB_FEAT_RO_COMPAT_REFLINK)
+		features |= XFS_FEAT_REFLINK;
+	if (sbp->sb_features_ro_compat & XFS_SB_FEAT_RO_COMPAT_INOBTCNT)
+		features |= XFS_FEAT_INOBTCNT;
+	if (sbp->sb_features_incompat & XFS_SB_FEAT_INCOMPAT_FTYPE)
+		features |= XFS_FEAT_FTYPE;
+	if (sbp->sb_features_incompat & XFS_SB_FEAT_INCOMPAT_SPINODES)
+		features |= XFS_FEAT_SPINODES;
+	if (sbp->sb_features_incompat & XFS_SB_FEAT_INCOMPAT_META_UUID)
+		features |= XFS_FEAT_META_UUID;
+	if (sbp->sb_features_incompat & XFS_SB_FEAT_INCOMPAT_BIGTIME)
+		features |= XFS_FEAT_BIGTIME;
+	return features;
+}
+
 /* Check all the superblock fields we care about when reading one in. */
 STATIC int
 xfs_validate_sb_read(
@@ -740,10 +804,10 @@ xfs_sb_read_verify(
 	 * because _verify_common checks the on-disk values.
 	 */
 	__xfs_sb_from_disk(&sb, dsb, false);
-	error = xfs_validate_sb_common(mp, bp, &sb);
+	error = xfs_validate_sb_read(mp, &sb);
 	if (error)
 		goto out_error;
-	error = xfs_validate_sb_read(mp, &sb);
+	error = xfs_validate_sb_common(mp, bp, &sb);
 
 out_error:
 	if (error == -EFSCORRUPTED || error == -EFSBADCRC)
@@ -1087,26 +1151,23 @@ xfs_sync_sb_buf(
 	struct xfs_mount	*mp)
 {
 	struct xfs_trans	*tp;
-	struct xfs_buf		*bp;
 	int			error;
 
 	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_sb, 0, 0, 0, &tp);
 	if (error)
 		return error;
 
-	bp = xfs_trans_getsb(tp);
 	xfs_log_sb(tp);
-	xfs_trans_bhold(tp, bp);
 	xfs_trans_set_sync(tp);
 	error = xfs_trans_commit(tp);
 	if (error)
-		goto out;
-	/*
-	 * write out the sb buffer to get the changes to disk
-	 */
-	error = xfs_bwrite(bp);
-out:
-	xfs_buf_relse(bp);
+		return error;
+
+	/* Re-acquire and write the sb to disk. */
+	xfs_buf_lock(mp->m_sb_bp);
+	error = xfs_bwrite(mp->m_sb_bp);
+	xfs_buf_unlock(mp->m_sb_bp);
+
 	return error;
 }
 

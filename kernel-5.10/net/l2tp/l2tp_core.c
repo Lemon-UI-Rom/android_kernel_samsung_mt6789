@@ -164,7 +164,7 @@ static void l2tp_session_free(struct l2tp_session *session)
 {
 	trace_free_session(session);
 	if (session->tunnel)
-		l2tp_tunnel_dec_refcount(session->tunnel);
+		l2tp_tunnel_put(session->tunnel);
 	kfree(session);
 }
 
@@ -180,6 +180,20 @@ struct l2tp_tunnel *l2tp_sk_to_tunnel(struct sock *sk)
 }
 EXPORT_SYMBOL_GPL(l2tp_sk_to_tunnel);
 
+void l2tp_tunnel_put(struct l2tp_tunnel *tunnel)
+{
+	if (refcount_dec_and_test(&tunnel->ref_count))
+		l2tp_tunnel_free(tunnel);
+}
+EXPORT_SYMBOL_GPL(l2tp_tunnel_put);
+
+void l2tp_session_put(struct l2tp_session *session)
+{
+	if (refcount_dec_and_test(&session->ref_count))
+		l2tp_session_free(session);
+}
+EXPORT_SYMBOL_GPL(l2tp_session_put);
+
 void l2tp_tunnel_inc_refcount(struct l2tp_tunnel *tunnel)
 {
 	refcount_inc(&tunnel->ref_count);
@@ -188,8 +202,7 @@ EXPORT_SYMBOL_GPL(l2tp_tunnel_inc_refcount);
 
 void l2tp_tunnel_dec_refcount(struct l2tp_tunnel *tunnel)
 {
-	if (refcount_dec_and_test(&tunnel->ref_count))
-		l2tp_tunnel_free(tunnel);
+	l2tp_tunnel_put(tunnel);
 }
 EXPORT_SYMBOL_GPL(l2tp_tunnel_dec_refcount);
 
@@ -201,8 +214,7 @@ EXPORT_SYMBOL_GPL(l2tp_session_inc_refcount);
 
 void l2tp_session_dec_refcount(struct l2tp_session *session)
 {
-	if (refcount_dec_and_test(&session->ref_count))
-		l2tp_session_free(session);
+	l2tp_session_put(session);
 }
 EXPORT_SYMBOL_GPL(l2tp_session_dec_refcount);
 
@@ -325,7 +337,7 @@ struct l2tp_session *l2tp_session_get_by_ifname(const struct net *net,
 	for (hash = 0; hash < L2TP_HASH_SIZE_2; hash++) {
 		hlist_for_each_entry_rcu(session, &pn->l2tp_session_hlist[hash], global_hlist) {
 			if (!strcmp(session->ifname, ifname)) {
-				l2tp_session_inc_refcount(session);
+				refcount_inc(&session->ref_count);
 				rcu_read_unlock_bh();
 
 				return session;
@@ -379,12 +391,12 @@ int l2tp_session_register(struct l2tp_session *session,
 				goto err_tlock_pnlock;
 			}
 
-		l2tp_tunnel_inc_refcount(tunnel);
+		refcount_inc(&tunnel->ref_count);
 		hlist_add_head_rcu(&session->global_hlist, g_head);
 
 		spin_unlock_bh(&pn->l2tp_session_hlist_lock);
 	} else {
-		l2tp_tunnel_inc_refcount(tunnel);
+		refcount_inc(&tunnel->ref_count);
 	}
 
 	hlist_add_head(&session->hlist, head);
@@ -695,10 +707,9 @@ void l2tp_recv_common(struct l2tp_session *session, struct sk_buff *skb,
 		 * check if we sre sending sequence numbers and if not,
 		 * configure it so.
 		 */
-		if (!session->lns_mode && !session->send_seq) {
+		if (!session->lns_mode && !READ_ONCE(session->send_seq)) {
 			trace_session_seqnum_lns_enable(session);
-			session->send_seq = 1;
-			l2tp_session_set_header_len(session, tunnel->version);
+			WRITE_ONCE(session->send_seq, true);
 		}
 	} else {
 		/* No sequence numbers.
@@ -716,11 +727,10 @@ void l2tp_recv_common(struct l2tp_session *session, struct sk_buff *skb,
 		 * If we're the LNS and we're sending sequence numbers, the
 		 * LAC is broken. Discard the frame.
 		 */
-		if (!session->lns_mode && session->send_seq) {
+		if (!session->lns_mode && READ_ONCE(session->send_seq)) {
 			trace_session_seqnum_lns_disable(session);
-			session->send_seq = 0;
-			l2tp_session_set_header_len(session, tunnel->version);
-		} else if (session->send_seq) {
+			WRITE_ONCE(session->send_seq, false);
+		} else if (READ_ONCE(session->send_seq)) {
 			pr_debug_ratelimited("%s: recv data has no seq numbers when required. Discarding.\n",
 					     session->name);
 			atomic_long_inc(&session->stats.rx_seq_discards);
@@ -863,7 +873,7 @@ static int l2tp_udp_recv_core(struct l2tp_tunnel *tunnel, struct sk_buff *skb)
 	session = l2tp_tunnel_get_session(tunnel, session_id);
 	if (!session || !session->recv_skb) {
 		if (session)
-			l2tp_session_dec_refcount(session);
+			l2tp_session_put(session);
 
 		/* Not found? Pass to userspace to deal with */
 		pr_debug_ratelimited("%s: no session found (%u/%u). Passing up.\n",
@@ -873,12 +883,12 @@ static int l2tp_udp_recv_core(struct l2tp_tunnel *tunnel, struct sk_buff *skb)
 
 	if (tunnel->version == L2TP_HDR_VER_3 &&
 	    l2tp_v3_ensure_opt_in_linear(session, skb, &ptr, &optr)) {
-		l2tp_session_dec_refcount(session);
+		l2tp_session_put(session);
 		goto invalid;
 	}
 
 	l2tp_recv_common(session, skb, ptr, optr, hdrflags, length);
-	l2tp_session_dec_refcount(session);
+	l2tp_session_put(session);
 
 	return 0;
 
@@ -930,7 +940,8 @@ EXPORT_SYMBOL_GPL(l2tp_udp_encap_recv);
 
 /* Build an L2TP header for the session into the buffer provided.
  */
-static int l2tp_build_l2tpv2_header(struct l2tp_session *session, void *buf)
+static int l2tp_build_l2tpv2_header(struct l2tp_session *session, void *buf,
+				    bool send_seq)
 {
 	struct l2tp_tunnel *tunnel = session->tunnel;
 	__be16 *bufp = buf;
@@ -939,14 +950,14 @@ static int l2tp_build_l2tpv2_header(struct l2tp_session *session, void *buf)
 	u32 tunnel_id = tunnel->peer_tunnel_id;
 	u32 session_id = session->peer_session_id;
 
-	if (session->send_seq)
+	if (send_seq)
 		flags |= L2TP_HDRFLAG_S;
 
 	/* Setup L2TP header. */
 	*bufp++ = htons(flags);
 	*bufp++ = htons(tunnel_id);
 	*bufp++ = htons(session_id);
-	if (session->send_seq) {
+	if (send_seq) {
 		*bufp++ = htons(session->ns);
 		*bufp++ = 0;
 		session->ns++;
@@ -957,7 +968,8 @@ static int l2tp_build_l2tpv2_header(struct l2tp_session *session, void *buf)
 	return bufp - optr;
 }
 
-static int l2tp_build_l2tpv3_header(struct l2tp_session *session, void *buf)
+static int l2tp_build_l2tpv3_header(struct l2tp_session *session, void *buf,
+				    bool send_seq)
 {
 	struct l2tp_tunnel *tunnel = session->tunnel;
 	char *bufp = buf;
@@ -983,7 +995,7 @@ static int l2tp_build_l2tpv3_header(struct l2tp_session *session, void *buf)
 	if (session->l2specific_type == L2TP_L2SPECTYPE_DEFAULT) {
 		u32 l2h = 0;
 
-		if (session->send_seq) {
+		if (send_seq) {
 			l2h = 0x40000000 | session->ns;
 			session->ns++;
 			session->ns &= 0xffffff;
@@ -1017,19 +1029,24 @@ static int l2tp_xmit_queue(struct l2tp_tunnel *tunnel, struct sk_buff *skb, stru
 static int l2tp_xmit_core(struct l2tp_session *session, struct sk_buff *skb, unsigned int *len)
 {
 	struct l2tp_tunnel *tunnel = session->tunnel;
+	bool send_seq = READ_ONCE(session->send_seq);
 	unsigned int data_len = skb->len;
 	struct sock *sk = tunnel->sock;
+	u16 hdr_len = session->hdr_len;
 	int headroom, uhlen, udp_len;
 	int ret = NET_XMIT_SUCCESS;
 	struct inet_sock *inet;
 	struct udphdr *uh;
+
+	if (tunnel->version == L2TP_HDR_VER_2 && !send_seq)
+		hdr_len -= 4;
 
 	/* Check that there's enough headroom in the skb to insert IP,
 	 * UDP and L2TP headers. If not enough, expand it to
 	 * make room. Adjust truesize.
 	 */
 	uhlen = (tunnel->encap == L2TP_ENCAPTYPE_UDP) ? sizeof(*uh) : 0;
-	headroom = NET_SKB_PAD + sizeof(struct iphdr) + uhlen + session->hdr_len;
+	headroom = NET_SKB_PAD + sizeof(struct iphdr) + uhlen + hdr_len;
 	if (skb_cow_head(skb, headroom)) {
 		kfree_skb(skb);
 		return NET_XMIT_DROP;
@@ -1037,9 +1054,9 @@ static int l2tp_xmit_core(struct l2tp_session *session, struct sk_buff *skb, uns
 
 	/* Setup L2TP header */
 	if (tunnel->version == L2TP_HDR_VER_2)
-		l2tp_build_l2tpv2_header(session, __skb_push(skb, session->hdr_len));
+		l2tp_build_l2tpv2_header(session, __skb_push(skb, hdr_len), send_seq);
 	else
-		l2tp_build_l2tpv3_header(session, __skb_push(skb, session->hdr_len));
+		l2tp_build_l2tpv3_header(session, __skb_push(skb, hdr_len), send_seq);
 
 	/* Reset skb netfilter state */
 	memset(&(IPCB(skb)->opt), 0, sizeof(IPCB(skb)->opt));
@@ -1082,7 +1099,12 @@ static int l2tp_xmit_core(struct l2tp_session *session, struct sk_buff *skb, uns
 		uh = udp_hdr(skb);
 		uh->source = inet->inet_sport;
 		uh->dest = inet->inet_dport;
-		udp_len = uhlen + session->hdr_len + data_len;
+		udp_len = uhlen + hdr_len + data_len;
+		if (udp_len > U16_MAX) {
+			kfree_skb(skb);
+			ret = NET_XMIT_DROP;
+			goto out_unlock;
+		}
 		uh->len = htons(udp_len);
 
 		/* Calculate UDP checksum if configured to do so */
@@ -1252,8 +1274,6 @@ static void l2tp_tunnel_del_work(struct work_struct *work)
 {
 	struct l2tp_tunnel *tunnel = container_of(work, struct l2tp_tunnel,
 						  del_work);
-	struct sock *sk = tunnel->sock;
-	struct socket *sock = sk->sk_socket;
 
 	l2tp_tunnel_closeall(tunnel);
 
@@ -1261,6 +1281,8 @@ static void l2tp_tunnel_del_work(struct work_struct *work)
 	 * the sk API to release it here.
 	 */
 	if (tunnel->fd < 0) {
+		struct socket *sock = tunnel->sock->sk_socket;
+
 		if (sock) {
 			kernel_sock_shutdown(sock, SHUT_RDWR);
 			sock_release(sock);
@@ -1269,10 +1291,10 @@ static void l2tp_tunnel_del_work(struct work_struct *work)
 
 	l2tp_tunnel_remove(tunnel->l2tp_net, tunnel);
 	/* drop initial ref */
-	l2tp_tunnel_dec_refcount(tunnel);
+	l2tp_tunnel_put(tunnel);
 
 	/* drop workqueue ref */
-	l2tp_tunnel_dec_refcount(tunnel);
+	l2tp_tunnel_put(tunnel);
 }
 
 /* Create a socket for the tunnel, if one isn't set up by
@@ -1552,7 +1574,7 @@ void l2tp_tunnel_delete(struct l2tp_tunnel *tunnel)
 {
 	if (!test_and_set_bit(0, &tunnel->dead)) {
 		trace_delete_tunnel(tunnel);
-		l2tp_tunnel_inc_refcount(tunnel);
+		refcount_inc(&tunnel->ref_count);
 		queue_work(l2tp_wq, &tunnel->del_work);
 	}
 }
@@ -1569,19 +1591,14 @@ void l2tp_session_delete(struct l2tp_session *session)
 	if (session->session_close)
 		(*session->session_close)(session);
 
-	l2tp_session_dec_refcount(session);
+	l2tp_session_put(session);
 }
 EXPORT_SYMBOL_GPL(l2tp_session_delete);
 
-/* We come here whenever a session's send_seq, cookie_len or
- * l2specific_type parameters are set.
- */
-void l2tp_session_set_header_len(struct l2tp_session *session, int version)
+static void l2tp_session_set_header_len(struct l2tp_session *session, int version)
 {
 	if (version == L2TP_HDR_VER_2) {
-		session->hdr_len = 6;
-		if (session->send_seq)
-			session->hdr_len += 4;
+		session->hdr_len = 10;
 	} else {
 		session->hdr_len = 4 + session->cookie_len;
 		session->hdr_len += l2tp_get_l2specific_len(session);
@@ -1589,7 +1606,6 @@ void l2tp_session_set_header_len(struct l2tp_session *session, int version)
 			session->hdr_len += 4;
 	}
 }
-EXPORT_SYMBOL_GPL(l2tp_session_set_header_len);
 
 struct l2tp_session *l2tp_session_create(int priv_size, struct l2tp_tunnel *tunnel, u32 session_id,
 					 u32 peer_session_id, struct l2tp_session_cfg *cfg)

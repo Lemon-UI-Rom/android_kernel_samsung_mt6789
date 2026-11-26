@@ -34,9 +34,9 @@ enum {
 	ISR_DISCONNECTED,
 	ISR_CONNECT_PENDING,
 	ISR_CONNECTED,
-	ISR_HPD_REPLUG_COUNT,
+	ISR_HPD_IO_GLITCH_COUNT,
 	ISR_IRQ_HPD_PULSE_COUNT,
-	ISR_HPD_LO_GLITH_COUNT,
+	ISR_HPD_REPLUG_COUNT,
 };
 
 /* event thread connection state */
@@ -599,6 +599,12 @@ static int dp_hpd_plug_handle(struct dp_display_private *dp, u32 data)
 	}
 
 	mutex_unlock(&dp->event_mutex);
+
+	/*
+	 * add fail safe mode outside event_mutex scope
+	 * to avoid potiential circular lock with drm thread
+	 */
+	dp_panel_add_fail_safe_mode(dp->dp_display.connector);
 
 	/* uevent will complete connection part */
 	return 0;
