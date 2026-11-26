@@ -31,7 +31,9 @@
 #define CC_ST_IBUS_OFFSET       100
 #define CV_ST_SUB_DC_OFF_IBUS   1000
 
+#undef MAX
 #define MAX(a, b)               ((a > b) ? (a):(b))
+#undef MIN
 #define MIN(a, b)               ((a < b) ? (a):(b))
 
 enum sm_dc_charging_loop {

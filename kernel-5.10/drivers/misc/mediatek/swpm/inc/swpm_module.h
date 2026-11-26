@@ -17,7 +17,9 @@
  ****************************************************************************/
 #define IDD_TBL_DBG
 
+#undef MAX
 #define MAX(a, b)			((a) >= (b) ? (a) : (b))
+#undef MIN
 #define MIN(a, b)			((a) >= (b) ? (b) : (a))
 
 #define SWPM_OPS (swpm_m.plat_ops)

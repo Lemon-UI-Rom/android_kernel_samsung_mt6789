@@ -15,6 +15,7 @@
 
 #include "perf_ioctl.h"
 
+#undef MAX
 #define MAX(a, b) (((a) > (b)) ? (a) : (b))
 
 /*tchbst 100 ms*/
