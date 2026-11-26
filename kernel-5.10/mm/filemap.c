@@ -249,6 +249,23 @@ void __delete_from_page_cache(struct page *page, void *shadow)
 	page_cache_delete(mapping, page, shadow);
 }
 
+static void page_cache_free_page(struct address_space *mapping,
+				struct page *page)
+{
+	void (*freepage)(struct page *);
+
+	freepage = mapping->a_ops->freepage;
+	if (freepage)
+		freepage(page);
+
+	if (PageTransHuge(page) && !PageHuge(page)) {
+		page_ref_sub(page, thp_nr_pages(page));
+		VM_BUG_ON_PAGE(page_count(page) <= 0, page);
+	} else {
+		put_page(page);
+	}
+}
+
 /**
  * delete_from_page_cache - delete page from page cache
  * @page: the page which the kernel is trying to remove from page cache
@@ -260,23 +277,14 @@ void __delete_from_page_cache(struct page *page, void *shadow)
 void delete_from_page_cache(struct page *page)
 {
 	struct address_space *mapping = page_mapping(page);
-	void (*freepage)(struct page *page);
 	unsigned long flags;
 
 	BUG_ON(!PageLocked(page));
 	xa_lock_irqsave(&mapping->i_pages, flags);
 	__delete_from_page_cache(page, NULL);
-	freepage = mapping->a_ops->freepage;
 	xa_unlock_irqrestore(&mapping->i_pages, flags);
 
-	if (freepage)
-		freepage(page);
-	if (PageTransHuge(page) && !PageHuge(page)) {
-		page_ref_sub(page, thp_nr_pages(page));
-		VM_BUG_ON_PAGE(page_count(page) <= 0, page);
-	} else {
-		put_page(page);
-	}
+	page_cache_free_page(mapping, page);
 }
 EXPORT_SYMBOL(delete_from_page_cache);
 
@@ -345,7 +353,6 @@ static void page_cache_delete_batch(struct address_space *mapping,
 void delete_from_page_cache_batch(struct address_space *mapping,
 				  struct pagevec *pvec)
 {
-	void (*freepage)(struct page *page);
 	int i;
 	unsigned long flags;
 
@@ -359,21 +366,10 @@ void delete_from_page_cache_batch(struct address_space *mapping,
 		unaccount_page_cache_page(mapping, pvec->pages[i]);
 	}
 	page_cache_delete_batch(mapping, pvec);
-	freepage = mapping->a_ops->freepage;
 	xa_unlock_irqrestore(&mapping->i_pages, flags);
 
-	for (i = 0; i < pagevec_count(pvec); i++) {
-		struct page *page = pvec->pages[i];
-
-		if (freepage)
-			freepage(page);
-		if (PageTransHuge(page) && !PageHuge(page)) {
-			page_ref_sub(page, thp_nr_pages(page));
-			VM_BUG_ON_PAGE(page_count(page) <= 0, page);
-		} else {
-			put_page(page);
-		}
-	}
+	for (i = 0; i < pagevec_count(pvec); i++)
+		page_cache_free_page(mapping, pvec->pages[i]);
 }
 
 int filemap_check_errors(struct address_space *mapping)
@@ -1338,22 +1334,10 @@ repeat:
 	 * return value based on that state without races.
 	 *
 	 * Also note that WQ_FLAG_WOKEN is sufficient for a non-exclusive
-	 * waiter, but an exclusive one must also acquire the bit.
+	 * waiter, but an exclusive one requires WQ_FLAG_DONE.
 	 */
-	if (behavior == EXCLUSIVE) {
-		if (wait->flags & WQ_FLAG_DONE)
-			return 0;
-		/*
-		 * We might have just been woken up and the waker will not
-		 * wake up anybody else. If we ignore that now, the remaining
-		 * waiters may not get woken up: take the bit now if it is
-		 * still free.
-		 */
-		if ((wait->flags & WQ_FLAG_WOKEN) &&
-		    !test_and_set_bit(bit_nr, &page->flags))
-			return 0;
-		return -EINTR;
-	}
+	if (behavior == EXCLUSIVE)
+		return wait->flags & WQ_FLAG_DONE ? 0 : -EINTR;
 
 	return wait->flags & WQ_FLAG_WOKEN ? 0 : -EINTR;
 }
@@ -2236,7 +2220,6 @@ ssize_t generic_file_buffered_read(struct kiocb *iocb,
 		return 0;
 
 	iov_iter_truncate(iter, inode->i_sb->s_maxbytes);
-	trace_android_vh_filemap_read(filp, iocb->ki_pos, iov_iter_count(iter));
 
 	index = *ppos >> PAGE_SHIFT;
 	prev_index = ra->prev_pos >> PAGE_SHIFT;
@@ -3095,7 +3078,6 @@ vm_fault_t filemap_map_pages(struct vm_fault *vmf,
 	unsigned int mmap_miss = READ_ONCE(file->f_ra.mmap_miss);
 	vm_fault_t ret = (vmf->flags & FAULT_FLAG_SPECULATIVE) ?
 		VM_FAULT_RETRY : 0;
-	pgoff_t first_pgoff = 0;
 
 #ifdef CONFIG_PAGE_BOOST_RECORDING
 	pgoff_t head_pgoff = 0;
@@ -3105,7 +3087,6 @@ vm_fault_t filemap_map_pages(struct vm_fault *vmf,
 	head = first_map_page(mapping, &xas, end_pgoff);
 	if (!head)
 		goto out;
-	first_pgoff = xas.xa_index;
 
 #ifdef CONFIG_PAGE_BOOST_RECORDING
 	head_pgoff = xas.xa_index;
@@ -3161,7 +3142,6 @@ out:
 		record_io_info(file, head_pgoff, last_pgoff - head_pgoff + 1);
 #endif
 	WRITE_ONCE(file->f_ra.mmap_miss, mmap_miss);
-	trace_android_vh_filemap_map_pages(file, first_pgoff, last_pgoff, ret);
 	return ret;
 }
 EXPORT_SYMBOL(filemap_map_pages);
@@ -3219,7 +3199,7 @@ int generic_file_mmap(struct file * file, struct vm_area_struct * vma)
  */
 int generic_file_readonly_mmap(struct file *file, struct vm_area_struct *vma)
 {
-	if (vma_is_shared_maywrite(vma))
+	if ((vma->vm_flags & VM_SHARED) && (vma->vm_flags & VM_MAYWRITE))
 		return -EINVAL;
 	return generic_file_mmap(file, vma);
 }
@@ -3610,7 +3590,6 @@ again:
 			break;
 		copied = status;
 
-		trace_android_vh_io_statistics(mapping, page->index, 1, false, false);
 		cond_resched();
 
 		iov_iter_advance(i, copied);
