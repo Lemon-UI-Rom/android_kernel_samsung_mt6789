@@ -6,7 +6,7 @@ on:
       TOOLCHAIN_URL:
         description: 'URL of the toolchain .tar.gz file'
         required: true
-        default: 'https://github.com/ashleypixie/Mirror-Source-Clang22-Prebuilt/releases/download/clang-22-r596125/clang-r596125.tar.gz'
+        default: 'https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main-kernel-2025/clang-r536225.tar.gz'
         type: string
       CLEAN_BUILD:
         description: 'Clean before building?'
